@@ -1,22 +1,51 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useActor } from "../../hooks/useActor";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  BarChart3,
+  Building2,
+  CreditCard,
+  Download,
+  Edit2,
+  FileText,
+  Loader2,
+  Search,
+} from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
-import { Download, Search, BarChart3, CreditCard, FileText, Loader2, Building2 } from "lucide-react";
-import type { Customer, StatementEntry, Payment } from "../../backend.d";
+import type { Customer, Payment, StatementEntry } from "../../backend.d";
+import { useActor } from "../../hooks/useActor";
 import { generateStatementPDF } from "../../utils/pdfUtils";
 
 function formatDate(timestamp: bigint | number): string {
-  const ms = typeof timestamp === "bigint" ? Number(timestamp) / 1_000_000 : timestamp;
+  const ms =
+    typeof timestamp === "bigint" ? Number(timestamp) / 1_000_000 : timestamp;
   return new Date(ms).toLocaleDateString("en-IN", {
     day: "2-digit",
     month: "short",
@@ -52,7 +81,9 @@ function getQuickRange(period: string): { from: Date; to: Date } {
   return { from, to: now };
 }
 
-function computeRunningBalance(entries: StatementEntry[]): { entry: StatementEntry; balance: number }[] {
+function computeRunningBalance(
+  entries: StatementEntry[],
+): { entry: StatementEntry; balance: number }[] {
   let balance = 0;
   return entries.map((entry) => {
     balance += entry.debit - entry.credit;
@@ -66,10 +97,14 @@ function CustomerStatementTab() {
   const token = localStorage.getItem("a1vs_admin_token") ?? "";
   const [selectedStore, setSelectedStore] = useState("");
   const [fromDate, setFromDate] = useState(() => {
-    const d = new Date(); d.setDate(1); d.setHours(0, 0, 0, 0);
+    const d = new Date();
+    d.setDate(1);
+    d.setHours(0, 0, 0, 0);
     return d.toISOString().split("T")[0];
   });
-  const [toDate, setToDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [toDate, setToDate] = useState(
+    () => new Date().toISOString().split("T")[0],
+  );
   const [entries, setEntries] = useState<StatementEntry[]>([]);
   const [isLoadingStmt, setIsLoadingStmt] = useState(false);
 
@@ -79,7 +114,9 @@ function CustomerStatementTab() {
     enabled: !!actor && !isFetching && !!token,
   });
 
-  const selectedCustomer = customers.find((c) => c.storeNumber === selectedStore);
+  const selectedCustomer = customers.find(
+    (c) => c.storeNumber === selectedStore,
+  );
 
   const handleQuick = (period: string) => {
     const { from, to } = getQuickRange(period);
@@ -94,12 +131,21 @@ function CustomerStatementTab() {
     }
     setIsLoadingStmt(true);
     try {
-      const from = toNano(new Date(fromDate + "T00:00:00"));
-      const to = toNano(new Date(toDate + "T23:59:59"));
-      const data = await actor.getCustomerStatement(token, selectedStore, from, to);
-      setEntries(data.sort((a, b) => Number(a.entryDate) - Number(b.entryDate)));
+      const from = toNano(new Date(`${fromDate}T00:00:00`));
+      const to = toNano(new Date(`${toDate}T23:59:59`));
+      const data = await actor.getCustomerStatement(
+        token,
+        selectedStore,
+        from,
+        to,
+      );
+      setEntries(
+        data.sort((a, b) => Number(a.entryDate) - Number(b.entryDate)),
+      );
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to load statement");
+      toast.error(
+        err instanceof Error ? err.message : "Failed to load statement",
+      );
     } finally {
       setIsLoadingStmt(false);
     }
@@ -116,7 +162,7 @@ function CustomerStatementTab() {
       selectedCustomer?.companyName ?? "",
       `${fromDate} to ${toDate}`,
       closingBalance,
-      selectedStore
+      selectedStore,
     );
   };
 
@@ -128,7 +174,9 @@ function CustomerStatementTab() {
             <Search className="w-4 h-4 text-primary" />
             Customer Statement
           </CardTitle>
-          <CardDescription>Select a customer and date range to view their statement</CardDescription>
+          <CardDescription>
+            Select a customer and date range to view their statement
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -182,12 +230,24 @@ function CustomerStatementTab() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button onClick={handleLoad} disabled={isLoadingStmt || !selectedStore} className="gap-2 h-9">
-              {isLoadingStmt ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+            <Button
+              onClick={handleLoad}
+              disabled={isLoadingStmt || !selectedStore}
+              className="gap-2 h-9"
+            >
+              {isLoadingStmt ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <FileText className="w-4 h-4" />
+              )}
               Load Statement
             </Button>
             {entries.length > 0 && (
-              <Button variant="outline" onClick={handleDownloadPDF} className="gap-2 h-9">
+              <Button
+                variant="outline"
+                onClick={handleDownloadPDF}
+                className="gap-2 h-9"
+              >
                 <Download className="w-4 h-4" />
                 Download PDF
               </Button>
@@ -201,14 +261,18 @@ function CustomerStatementTab() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="font-heading text-base">{selectedCustomer?.companyName}</CardTitle>
+                <CardTitle className="font-heading text-base">
+                  {selectedCustomer?.companyName}
+                </CardTitle>
                 <p className="text-xs text-muted-foreground mt-1">
                   {fromDate} to {toDate} · {entries.length} entries
                 </p>
               </div>
               <div className="text-right">
                 <p className="text-xs text-muted-foreground">Closing Balance</p>
-                <p className={`font-bold text-lg ${closingBalance > 0 ? "text-destructive" : "text-success"}`}>
+                <p
+                  className={`font-bold text-lg ${closingBalance > 0 ? "text-destructive" : "text-success"}`}
+                >
                   ₹{closingBalance.toFixed(2)}
                 </p>
               </div>
@@ -219,29 +283,52 @@ function CustomerStatementTab() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="text-left px-6 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date</th>
-                    <th className="text-left px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Type</th>
-                    <th className="text-left px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Reference</th>
-                    <th className="text-right px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Debit (₹)</th>
-                    <th className="text-right px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Credit (₹)</th>
-                    <th className="text-right px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Balance (₹)</th>
+                    <th className="text-left px-6 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Date
+                    </th>
+                    <th className="text-left px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Type
+                    </th>
+                    <th className="text-left px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Reference
+                    </th>
+                    <th className="text-right px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Debit (₹)
+                    </th>
+                    <th className="text-right px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Credit (₹)
+                    </th>
+                    <th className="text-right px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Balance (₹)
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {withBalance.map(({ entry, balance }) => (
-                    <tr key={`${entry.referenceNumber}-${Number(entry.entryDate)}`} className="border-b border-border/50 hover:bg-muted/30">
-                      <td className="px-6 py-2 text-xs">{formatDate(entry.entryDate)}</td>
-                      <td className="px-4 py-2">
-                        <Badge variant="outline" className="text-xs capitalize">{entry.entryType}</Badge>
+                    <tr
+                      key={`${entry.referenceNumber}-${Number(entry.entryDate)}`}
+                      className="border-b border-border/50 hover:bg-muted/30"
+                    >
+                      <td className="px-6 py-2 text-xs">
+                        {formatDate(entry.entryDate)}
                       </td>
-                      <td className="px-4 py-2 text-xs font-mono">{entry.referenceNumber}</td>
+                      <td className="px-4 py-2">
+                        <Badge variant="outline" className="text-xs capitalize">
+                          {entry.entryType}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-2 text-xs font-mono">
+                        {entry.referenceNumber}
+                      </td>
                       <td className="px-4 py-2 text-right text-xs text-destructive font-medium">
                         {entry.debit > 0 ? `₹${entry.debit.toFixed(2)}` : "-"}
                       </td>
                       <td className="px-4 py-2 text-right text-xs text-success font-medium">
                         {entry.credit > 0 ? `₹${entry.credit.toFixed(2)}` : "-"}
                       </td>
-                      <td className={`px-4 py-2 text-right text-xs font-semibold ${balance > 0 ? "text-destructive" : "text-success"}`}>
+                      <td
+                        className={`px-4 py-2 text-right text-xs font-semibold ${balance > 0 ? "text-destructive" : "text-success"}`}
+                      >
                         ₹{balance.toFixed(2)}
                       </td>
                     </tr>
@@ -258,13 +345,17 @@ function CustomerStatementTab() {
 
 // Company Statement Tab
 function CompanyStatementTab() {
-  const { actor, isFetching } = useActor();
+  const { actor } = useActor();
   const token = localStorage.getItem("a1vs_admin_token") ?? "";
   const [fromDate, setFromDate] = useState(() => {
-    const d = new Date(); d.setDate(1); d.setHours(0, 0, 0, 0);
+    const d = new Date();
+    d.setDate(1);
+    d.setHours(0, 0, 0, 0);
     return d.toISOString().split("T")[0];
   });
-  const [toDate, setToDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [toDate, setToDate] = useState(
+    () => new Date().toISOString().split("T")[0],
+  );
   const [entries, setEntries] = useState<StatementEntry[]>([]);
   const [isLoadingStmt, setIsLoadingStmt] = useState(false);
 
@@ -278,12 +369,16 @@ function CompanyStatementTab() {
     if (!actor) return;
     setIsLoadingStmt(true);
     try {
-      const from = toNano(new Date(fromDate + "T00:00:00"));
-      const to = toNano(new Date(toDate + "T23:59:59"));
+      const from = toNano(new Date(`${fromDate}T00:00:00`));
+      const to = toNano(new Date(`${toDate}T23:59:59`));
       const data = await actor.getCompanyStatement(token, from, to);
-      setEntries(data.sort((a, b) => Number(a.entryDate) - Number(b.entryDate)));
+      setEntries(
+        data.sort((a, b) => Number(a.entryDate) - Number(b.entryDate)),
+      );
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to load statement");
+      toast.error(
+        err instanceof Error ? err.message : "Failed to load statement",
+      );
     } finally {
       setIsLoadingStmt(false);
     }
@@ -299,7 +394,7 @@ function CompanyStatementTab() {
       "All Companies",
       "AONE VEGETABLES & SUPPLIER",
       `${fromDate} to ${toDate}`,
-      closingBalance
+      closingBalance,
     );
   };
 
@@ -311,17 +406,29 @@ function CompanyStatementTab() {
             <Building2 className="w-4 h-4 text-primary" />
             Company Statement (All Customers)
           </CardTitle>
-          <CardDescription>View the combined statement for all companies by date range</CardDescription>
+          <CardDescription>
+            View the combined statement for all companies by date range
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs">From Date</Label>
-              <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="h-9 text-xs" />
+              <Input
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="h-9 text-xs"
+              />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">To Date</Label>
-              <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="h-9 text-xs" />
+              <Input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="h-9 text-xs"
+              />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Quick Range</Label>
@@ -340,12 +447,24 @@ function CompanyStatementTab() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button onClick={handleLoad} disabled={isLoadingStmt} className="gap-2 h-9">
-              {isLoadingStmt ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+            <Button
+              onClick={handleLoad}
+              disabled={isLoadingStmt}
+              className="gap-2 h-9"
+            >
+              {isLoadingStmt ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <FileText className="w-4 h-4" />
+              )}
               Load Statement
             </Button>
             {entries.length > 0 && (
-              <Button variant="outline" onClick={handleDownloadPDF} className="gap-2 h-9">
+              <Button
+                variant="outline"
+                onClick={handleDownloadPDF}
+                className="gap-2 h-9"
+              >
                 <Download className="w-4 h-4" />
                 Download PDF
               </Button>
@@ -359,14 +478,18 @@ function CompanyStatementTab() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="font-heading text-base">Company Statement</CardTitle>
+                <CardTitle className="font-heading text-base">
+                  Company Statement
+                </CardTitle>
                 <p className="text-xs text-muted-foreground mt-1">
                   {fromDate} to {toDate} · {entries.length} entries
                 </p>
               </div>
               <div className="text-right">
                 <p className="text-xs text-muted-foreground">Total Balance</p>
-                <p className={`font-bold text-lg ${closingBalance > 0 ? "text-destructive" : "text-success"}`}>
+                <p
+                  className={`font-bold text-lg ${closingBalance > 0 ? "text-destructive" : "text-success"}`}
+                >
                   ₹{closingBalance.toFixed(2)}
                 </p>
               </div>
@@ -377,25 +500,52 @@ function CompanyStatementTab() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="text-left px-6 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date</th>
-                    <th className="text-left px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Company</th>
-                    <th className="text-left px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Store</th>
-                    <th className="text-left px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Type</th>
-                    <th className="text-left px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Reference</th>
-                    <th className="text-right px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Debit (₹)</th>
-                    <th className="text-right px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Credit (₹)</th>
+                    <th className="text-left px-6 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Date
+                    </th>
+                    <th className="text-left px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Company
+                    </th>
+                    <th className="text-left px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Store
+                    </th>
+                    <th className="text-left px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Type
+                    </th>
+                    <th className="text-left px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Reference
+                    </th>
+                    <th className="text-right px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Debit (₹)
+                    </th>
+                    <th className="text-right px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Credit (₹)
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {entries.map((entry) => (
-                    <tr key={`${entry.referenceNumber}-${Number(entry.entryDate)}-${entry.storeNumber}`} className="border-b border-border/50 hover:bg-muted/30">
-                      <td className="px-6 py-2 text-xs">{formatDate(entry.entryDate)}</td>
-                      <td className="px-4 py-2 text-xs font-medium">{entry.companyName}</td>
-                      <td className="px-4 py-2 text-xs font-mono">{entry.storeNumber}</td>
-                      <td className="px-4 py-2">
-                        <Badge variant="outline" className="text-xs capitalize">{entry.entryType}</Badge>
+                    <tr
+                      key={`${entry.referenceNumber}-${Number(entry.entryDate)}-${entry.storeNumber}`}
+                      className="border-b border-border/50 hover:bg-muted/30"
+                    >
+                      <td className="px-6 py-2 text-xs">
+                        {formatDate(entry.entryDate)}
                       </td>
-                      <td className="px-4 py-2 text-xs font-mono">{entry.referenceNumber}</td>
+                      <td className="px-4 py-2 text-xs font-medium">
+                        {entry.companyName}
+                      </td>
+                      <td className="px-4 py-2 text-xs font-mono">
+                        {entry.storeNumber}
+                      </td>
+                      <td className="px-4 py-2">
+                        <Badge variant="outline" className="text-xs capitalize">
+                          {entry.entryType}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-2 text-xs font-mono">
+                        {entry.referenceNumber}
+                      </td>
                       <td className="px-4 py-2 text-right text-xs text-destructive font-medium">
                         {entry.debit > 0 ? `₹${entry.debit.toFixed(2)}` : "-"}
                       </td>
@@ -426,24 +576,38 @@ function PaymentFeedTab() {
   const [chequeDetails, setChequeDetails] = useState("");
   const [utrDetails, setUtrDetails] = useState("");
 
+  // Edit payment state
+  const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
+  const [editStore, setEditStore] = useState("");
+  const [editCompanyName, setEditCompanyName] = useState("");
+  const [editAmount, setEditAmount] = useState("");
+  const [editPaymentMethod, setEditPaymentMethod] = useState("cash");
+  const [editChequeDetails, setEditChequeDetails] = useState("");
+  const [editUtrDetails, setEditUtrDetails] = useState("");
+
   const { data: customers = [] } = useQuery<Customer[]>({
     queryKey: ["all-customers", token],
     queryFn: () => actor!.getAllCustomers(token),
     enabled: !!actor && !isFetching && !!token,
   });
 
-  const { data: recentPayments = [], isLoading: paymentsLoading } = useQuery<Payment[]>({
+  const { data: recentPayments = [], isLoading: paymentsLoading } = useQuery<
+    Payment[]
+  >({
     queryKey: ["all-payments", token],
     queryFn: () => actor!.getAllPayments(token),
     enabled: !!actor && !isFetching && !!token,
   });
 
-  const selectedCustomer = customers.find((c) => c.storeNumber === selectedStore);
+  const selectedCustomer = customers.find(
+    (c) => c.storeNumber === selectedStore,
+  );
 
   const addPaymentMutation = useMutation({
     mutationFn: () => {
-      const amtNum = parseFloat(amount);
-      if (isNaN(amtNum) || amtNum <= 0) throw new Error("Invalid amount");
+      const amtNum = Number.parseFloat(amount);
+      if (Number.isNaN(amtNum) || amtNum <= 0)
+        throw new Error("Invalid amount");
       return actor!.addPayment(
         token,
         selectedStore,
@@ -451,7 +615,7 @@ function PaymentFeedTab() {
         amtNum,
         paymentMethod,
         paymentMethod === "cheque" ? chequeDetails : null,
-        paymentMethod === "online" ? utrDetails : null
+        paymentMethod === "online" ? utrDetails : null,
       );
     },
     onSuccess: () => {
@@ -462,7 +626,38 @@ function PaymentFeedTab() {
       qc.invalidateQueries({ queryKey: ["all-payments"] });
     },
     onError: (err) => {
-      toast.error(err instanceof Error ? err.message : "Failed to record payment");
+      toast.error(
+        err instanceof Error ? err.message : "Failed to record payment",
+      );
+    },
+  });
+
+  const editPaymentMutation = useMutation({
+    mutationFn: () => {
+      if (!editingPayment) throw new Error("No payment selected");
+      const amtNum = Number.parseFloat(editAmount);
+      if (Number.isNaN(amtNum) || amtNum <= 0)
+        throw new Error("Invalid amount");
+      return actor!.editPayment(
+        token,
+        editingPayment.paymentId,
+        editStore,
+        editCompanyName,
+        amtNum,
+        editPaymentMethod,
+        editPaymentMethod === "cheque" ? editChequeDetails || null : null,
+        editPaymentMethod === "online" ? editUtrDetails || null : null,
+      );
+    },
+    onSuccess: () => {
+      toast.success("Payment updated");
+      setEditingPayment(null);
+      qc.invalidateQueries({ queryKey: ["all-payments"] });
+    },
+    onError: (err) => {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to update payment",
+      );
     },
   });
 
@@ -472,7 +667,7 @@ function PaymentFeedTab() {
       toast.error("Please select a customer");
       return;
     }
-    if (!amount || parseFloat(amount) <= 0) {
+    if (!amount || Number.parseFloat(amount) <= 0) {
       toast.error("Please enter a valid amount");
       return;
     }
@@ -487,24 +682,215 @@ function PaymentFeedTab() {
     addPaymentMutation.mutate();
   };
 
-  const sortedPayments = [...recentPayments].sort((a, b) => Number(b.timestamp) - Number(a.timestamp));
+  const sortedPayments = [...recentPayments].sort(
+    (a, b) => Number(b.timestamp) - Number(a.timestamp),
+  );
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Add Payment Form */}
-      <Card className="shadow-xs">
-        <CardHeader>
-          <CardTitle className="font-heading text-base flex items-center gap-2">
-            <CreditCard className="w-4 h-4 text-primary" />
-            Record Payment
-          </CardTitle>
-          <CardDescription>Feed a payment received from a customer</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+    <>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Add Payment Form */}
+        <Card className="shadow-xs">
+          <CardHeader>
+            <CardTitle className="font-heading text-base flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-primary" />
+              Record Payment
+            </CardTitle>
+            <CardDescription>
+              Feed a payment received from a customer
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label>Customer</Label>
+                <Select value={selectedStore} onValueChange={setSelectedStore}>
+                  <SelectTrigger className="text-sm">
+                    <SelectValue placeholder="Select customer..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {customers.map((c) => (
+                      <SelectItem key={c.storeNumber} value={c.storeNumber}>
+                        {c.companyName} ({c.storeNumber})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="pay-amount">Amount (₹)</Label>
+                <Input
+                  id="pay-amount"
+                  type="number"
+                  min={0.01}
+                  step={0.01}
+                  placeholder="0.00"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Payment Method</Label>
+                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                  <SelectTrigger className="text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">Cash on Delivery</SelectItem>
+                    <SelectItem value="online">Online Transfer</SelectItem>
+                    <SelectItem value="cheque">Cheque</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {paymentMethod === "cheque" && (
+                <div className="space-y-2">
+                  <Label htmlFor="cheque-details">Cheque Details</Label>
+                  <Textarea
+                    id="cheque-details"
+                    placeholder="Cheque number, bank name, date..."
+                    value={chequeDetails}
+                    onChange={(e) => setChequeDetails(e.target.value)}
+                    className="min-h-20 text-sm"
+                  />
+                </div>
+              )}
+
+              {paymentMethod === "online" && (
+                <div className="space-y-2">
+                  <Label htmlFor="utr-details">UTR / Transaction ID</Label>
+                  <Input
+                    id="utr-details"
+                    placeholder="UTR number or transaction reference"
+                    value={utrDetails}
+                    onChange={(e) => setUtrDetails(e.target.value)}
+                  />
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                className="w-full gap-2"
+                disabled={addPaymentMutation.isPending}
+              >
+                {addPaymentMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <CreditCard className="w-4 h-4" />
+                )}
+                {addPaymentMutation.isPending
+                  ? "Recording..."
+                  : "Record Payment"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        {/* Recent Payments */}
+        <Card className="shadow-xs">
+          <CardHeader>
+            <CardTitle className="font-heading text-base flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-primary" />
+              Recent Payments
+              {!paymentsLoading && (
+                <Badge variant="secondary">{recentPayments.length}</Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {paymentsLoading ? (
+              <div className="space-y-2">
+                {[1, 2, 3].map((k) => (
+                  <Skeleton key={k} className="h-12 w-full" />
+                ))}
+              </div>
+            ) : sortedPayments.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">
+                No payments recorded yet
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {sortedPayments.map((payment) => (
+                  <div
+                    key={payment.paymentId}
+                    className="border border-border rounded-lg p-3"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="font-semibold text-sm">
+                        {payment.companyName}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold text-success">
+                          ₹{payment.amount.toFixed(2)}
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 w-7 p-0"
+                          onClick={() => {
+                            setEditingPayment(payment);
+                            setEditStore(payment.storeNumber);
+                            setEditCompanyName(payment.companyName);
+                            setEditAmount(payment.amount.toString());
+                            setEditPaymentMethod(payment.paymentMethod);
+                            setEditChequeDetails(payment.chequeDetails ?? "");
+                            setEditUtrDetails(payment.utrDetails ?? "");
+                          }}
+                        >
+                          <Edit2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Badge variant="outline" className="text-xs capitalize">
+                        {payment.paymentMethod}
+                      </Badge>
+                      <span>{formatDate(payment.timestamp)}</span>
+                      <span className="font-mono">{payment.storeNumber}</span>
+                    </div>
+                    {payment.chequeDetails && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Cheque: {payment.chequeDetails}
+                      </p>
+                    )}
+                    {payment.utrDetails && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        UTR: {payment.utrDetails}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+      {/* Edit Payment Dialog */}
+      <Dialog
+        open={!!editingPayment}
+        onOpenChange={(open) => !open && setEditingPayment(null)}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-heading flex items-center gap-2">
+              <Edit2 className="w-4 h-4 text-primary" />
+              Edit Payment
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {/* Customer selector */}
             <div className="space-y-2">
               <Label>Customer</Label>
-              <Select value={selectedStore} onValueChange={setSelectedStore}>
+              <Select
+                value={editStore}
+                onValueChange={(val) => {
+                  setEditStore(val);
+                  const customer = customers.find((c) => c.storeNumber === val);
+                  setEditCompanyName(customer?.companyName ?? "");
+                }}
+              >
                 <SelectTrigger className="text-sm">
                   <SelectValue placeholder="Select customer..." />
                 </SelectTrigger>
@@ -518,22 +904,27 @@ function PaymentFeedTab() {
               </Select>
             </div>
 
+            {/* Amount */}
             <div className="space-y-2">
-              <Label htmlFor="pay-amount">Amount (₹)</Label>
+              <Label htmlFor="edit-pay-amount">Amount (₹)</Label>
               <Input
-                id="pay-amount"
+                id="edit-pay-amount"
                 type="number"
                 min={0.01}
                 step={0.01}
                 placeholder="0.00"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                value={editAmount}
+                onChange={(e) => setEditAmount(e.target.value)}
               />
             </div>
 
+            {/* Payment Method */}
             <div className="space-y-2">
               <Label>Payment Method</Label>
-              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+              <Select
+                value={editPaymentMethod}
+                onValueChange={setEditPaymentMethod}
+              >
                 <SelectTrigger className="text-sm">
                   <SelectValue />
                 </SelectTrigger>
@@ -545,91 +936,57 @@ function PaymentFeedTab() {
               </Select>
             </div>
 
-            {paymentMethod === "cheque" && (
+            {/* Cheque Details */}
+            {editPaymentMethod === "cheque" && (
               <div className="space-y-2">
-                <Label htmlFor="cheque-details">Cheque Details</Label>
+                <Label htmlFor="edit-cheque-details">Cheque Details</Label>
                 <Textarea
-                  id="cheque-details"
+                  id="edit-cheque-details"
                   placeholder="Cheque number, bank name, date..."
-                  value={chequeDetails}
-                  onChange={(e) => setChequeDetails(e.target.value)}
+                  value={editChequeDetails}
+                  onChange={(e) => setEditChequeDetails(e.target.value)}
                   className="min-h-20 text-sm"
                 />
               </div>
             )}
 
-            {paymentMethod === "online" && (
+            {/* UTR Details */}
+            {editPaymentMethod === "online" && (
               <div className="space-y-2">
-                <Label htmlFor="utr-details">UTR / Transaction ID</Label>
+                <Label htmlFor="edit-utr-details">UTR / Transaction ID</Label>
                 <Input
-                  id="utr-details"
+                  id="edit-utr-details"
                   placeholder="UTR number or transaction reference"
-                  value={utrDetails}
-                  onChange={(e) => setUtrDetails(e.target.value)}
+                  value={editUtrDetails}
+                  onChange={(e) => setEditUtrDetails(e.target.value)}
                 />
               </div>
             )}
-
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEditingPayment(null)}>
+              Cancel
+            </Button>
             <Button
-              type="submit"
-              className="w-full gap-2"
-              disabled={addPaymentMutation.isPending}
+              disabled={
+                editPaymentMutation.isPending ||
+                !editAmount ||
+                Number.parseFloat(editAmount) <= 0
+              }
+              onClick={() => editPaymentMutation.mutate()}
+              className="gap-2"
             >
-              {addPaymentMutation.isPending ? (
+              {editPaymentMutation.isPending ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-                <CreditCard className="w-4 h-4" />
+                <Edit2 className="w-4 h-4" />
               )}
-              {addPaymentMutation.isPending ? "Recording..." : "Record Payment"}
+              Save Changes
             </Button>
-          </form>
-        </CardContent>
-      </Card>
-
-      {/* Recent Payments */}
-      <Card className="shadow-xs">
-        <CardHeader>
-          <CardTitle className="font-heading text-base flex items-center gap-2">
-            <BarChart3 className="w-4 h-4 text-primary" />
-            Recent Payments
-            {!paymentsLoading && <Badge variant="secondary">{recentPayments.length}</Badge>}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {paymentsLoading ? (
-            <div className="space-y-2">
-              {[1, 2, 3].map((k) => <Skeleton key={k} className="h-12 w-full" />)}
-            </div>
-          ) : sortedPayments.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground text-sm">
-              No payments recorded yet
-            </div>
-          ) : (
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {sortedPayments.map((payment) => (
-                <div key={payment.paymentId} className="border border-border rounded-lg p-3">
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="font-semibold text-sm">{payment.companyName}</p>
-                    <p className="font-bold text-success">₹{payment.amount.toFixed(2)}</p>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Badge variant="outline" className="text-xs capitalize">{payment.paymentMethod}</Badge>
-                    <span>{formatDate(payment.timestamp)}</span>
-                    <span className="font-mono">{payment.storeNumber}</span>
-                  </div>
-                  {payment.chequeDetails && (
-                    <p className="text-xs text-muted-foreground mt-1">Cheque: {payment.chequeDetails}</p>
-                  )}
-                  {payment.utrDetails && (
-                    <p className="text-xs text-muted-foreground mt-1">UTR: {payment.utrDetails}</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -639,7 +996,9 @@ export default function Accounts() {
     <div className="space-y-6">
       <div>
         <h1 className="font-heading text-2xl font-bold">Accounts</h1>
-        <p className="text-muted-foreground text-sm mt-1">Customer statements, company statement, and payment management</p>
+        <p className="text-muted-foreground text-sm mt-1">
+          Customer statements, company statement, and payment management
+        </p>
       </div>
 
       <Tabs defaultValue="customer-statement" className="w-full">

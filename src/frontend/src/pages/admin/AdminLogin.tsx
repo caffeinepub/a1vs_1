@@ -1,11 +1,17 @@
-import { useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useNavigate } from "@tanstack/react-router";
 import { Loader2, ShieldCheck, UserCog } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { useActor } from "../../hooks/useActor";
 
@@ -43,7 +49,8 @@ export default function AdminLogin() {
       toast.success("Logged in successfully");
       navigate({ to: "/admin" });
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Invalid credentials";
+      const message =
+        err instanceof Error ? err.message : "Invalid credentials";
       toast.error(message);
     } finally {
       setIsLoading(false);
@@ -69,7 +76,8 @@ export default function AdminLogin() {
       toast.success("Logged in successfully");
       navigate({ to: "/admin" });
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Invalid credentials";
+      const message =
+        err instanceof Error ? err.message : "Invalid credentials";
       toast.error(message);
     } finally {
       setIsSubLoading(false);
@@ -101,8 +109,12 @@ export default function AdminLogin() {
               }}
             />
             <div>
-              <h1 className="font-heading text-3xl font-bold text-white tracking-tight">A1VS</h1>
-              <p className="text-white/70 text-xs tracking-widest uppercase mt-0.5">AONE VEGETABLES & SUPPLIER</p>
+              <h1 className="font-heading text-3xl font-bold text-white tracking-tight">
+                A1VS
+              </h1>
+              <p className="text-white/70 text-xs tracking-widest uppercase mt-0.5">
+                AONE VEGETABLES & SUPPLIER
+              </p>
             </div>
           </div>
           <p className="text-muted-foreground mt-3 text-sm">Admin Portal</p>
@@ -111,7 +123,9 @@ export default function AdminLogin() {
         <Card className="border-0 shadow-2xl bg-card/95 backdrop-blur-sm">
           <CardHeader className="space-y-1 pb-2">
             <CardTitle className="font-heading text-xl">Sign In</CardTitle>
-            <CardDescription>Access the A1VS management dashboard</CardDescription>
+            <CardDescription>
+              Access the A1VS management dashboard
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="master" className="w-full">
@@ -152,7 +166,11 @@ export default function AdminLogin() {
                       className="h-10"
                     />
                   </div>
-                  <Button type="submit" className="w-full h-10 font-medium" disabled={isLoading}>
+                  <Button
+                    type="submit"
+                    className="w-full h-10 font-medium"
+                    disabled={isLoading}
+                  >
                     {isLoading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -191,7 +209,11 @@ export default function AdminLogin() {
                       className="h-10"
                     />
                   </div>
-                  <Button type="submit" className="w-full h-10 font-medium" disabled={isSubLoading}>
+                  <Button
+                    type="submit"
+                    className="w-full h-10 font-medium"
+                    disabled={isSubLoading}
+                  >
                     {isSubLoading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -209,7 +231,10 @@ export default function AdminLogin() {
 
         <p className="text-center text-xs text-muted-foreground mt-6">
           © 2026. Built with ♥ using{" "}
-          <a href="https://caffeine.ai" className="underline hover:text-foreground transition-colors">
+          <a
+            href="https://caffeine.ai"
+            className="underline hover:text-foreground transition-colors"
+          >
             caffeine.ai
           </a>
         </p>

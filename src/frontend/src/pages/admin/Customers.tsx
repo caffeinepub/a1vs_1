@@ -1,12 +1,12 @@
-import { useState, useRef } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useActor } from "../../hooks/useActor";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -15,10 +15,25 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Download,
+  FileSpreadsheet,
+  Loader2,
+  Pencil,
+  Trash2,
+  Upload,
+  UserPlus,
+  Users,
+} from "lucide-react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { Download, Upload, Users, Loader2, FileSpreadsheet, Pencil, Trash2 } from "lucide-react";
 import * as XLSX from "xlsx";
 import type { Customer } from "../../backend.d";
+import { useActor } from "../../hooks/useActor";
 
 function downloadTemplate() {
   const csv =
@@ -89,7 +104,12 @@ export default function Customers() {
   const [isSaving, setIsSaving] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [editForm, setEditForm] = useState<EditForm>(emptyForm);
-  const [deletingStoreNumber, setDeletingStoreNumber] = useState<string | null>(null);
+  const [deletingStoreNumber, setDeletingStoreNumber] = useState<string | null>(
+    null,
+  );
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [addForm, setAddForm] = useState<EditForm>(emptyForm);
+  const [isAddingSaving, setIsAddingSaving] = useState(false);
 
   const { data: customers = [], isLoading } = useQuery<Customer[]>({
     queryKey: ["admin-customers", token],
@@ -111,19 +131,27 @@ export default function Customers() {
 
       const customerList: Customer[] = rows
         .map((row) => ({
-          storeNumber: String(row["Store Number"] ?? row["store number"] ?? row["StoreNumber"] ?? "").trim(),
-          name: String(row["Name"] ?? row["name"] ?? "").trim(),
-          phone: String(row["Phone"] ?? row["phone"] ?? "").trim(),
-          companyName: String(row["Company Name"] ?? row["company name"] ?? row["CompanyName"] ?? "").trim(),
-          address: String(row["Address"] ?? row["address"] ?? "").trim(),
-          gstNumber: row["GST Number"] ? String(row["GST Number"]).trim() : undefined,
-          email: String(row["Email"] ?? row["email"] ?? "").trim(),
-          password: String(row["Password"] ?? row["password"] ?? "").trim(),
+          storeNumber: String(
+            row["Store Number"] ?? row["store number"] ?? row.StoreNumber ?? "",
+          ).trim(),
+          name: String(row.Name ?? row.name ?? "").trim(),
+          phone: String(row.Phone ?? row.phone ?? "").trim(),
+          companyName: String(
+            row["Company Name"] ?? row["company name"] ?? row.CompanyName ?? "",
+          ).trim(),
+          address: String(row.Address ?? row.address ?? "").trim(),
+          gstNumber: row["GST Number"]
+            ? String(row["GST Number"]).trim()
+            : undefined,
+          email: String(row.Email ?? row.email ?? "").trim(),
+          password: String(row.Password ?? row.password ?? "").trim(),
         }))
         .filter((c) => c.storeNumber && c.email && c.password);
 
       if (customerList.length === 0) {
-        toast.error("No valid customers found. Check column headers match the template.");
+        toast.error(
+          "No valid customers found. Check column headers match the template.",
+        );
         return;
       }
 
@@ -131,7 +159,8 @@ export default function Customers() {
       qc.invalidateQueries({ queryKey: ["admin-customers"] });
       toast.success(`${customerList.length} customers uploaded successfully`);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to upload customers";
+      const msg =
+        err instanceof Error ? err.message : "Failed to upload customers";
       toast.error(msg);
     } finally {
       setIsUploading(false);
@@ -146,7 +175,11 @@ export default function Customers() {
 
   const handleSaveEdit = async () => {
     if (!actor || !editingCustomer) return;
-    if (!editForm.storeNumber.trim() || !editForm.email.trim() || !editForm.password.trim()) {
+    if (
+      !editForm.storeNumber.trim() ||
+      !editForm.email.trim() ||
+      !editForm.password.trim()
+    ) {
       toast.error("Store Number, Email, and Password are required.");
       return;
     }
@@ -154,14 +187,15 @@ export default function Customers() {
     try {
       const updatedCustomer = formToCustomer(editForm);
       const updatedList = customers.map((c) =>
-        c.storeNumber === editingCustomer.storeNumber ? updatedCustomer : c
+        c.storeNumber === editingCustomer.storeNumber ? updatedCustomer : c,
       );
       await actor.replaceCustomers(token, updatedList);
       qc.invalidateQueries({ queryKey: ["admin-customers"] });
       toast.success("Customer updated successfully");
       setEditingCustomer(null);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to update customer";
+      const msg =
+        err instanceof Error ? err.message : "Failed to update customer";
       toast.error(msg);
     } finally {
       setIsSaving(false);
@@ -172,19 +206,72 @@ export default function Customers() {
     if (!actor) return;
     setDeletingStoreNumber(storeNumber);
     try {
-      const updatedList = customers.filter((c) => c.storeNumber !== storeNumber);
+      const updatedList = customers.filter(
+        (c) => c.storeNumber !== storeNumber,
+      );
       await actor.replaceCustomers(token, updatedList);
       qc.invalidateQueries({ queryKey: ["admin-customers"] });
       toast.success("Customer deleted successfully");
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to delete customer";
+      const msg =
+        err instanceof Error ? err.message : "Failed to delete customer";
       toast.error(msg);
     } finally {
       setDeletingStoreNumber(null);
     }
   };
 
-  const formFields: Array<{ key: keyof EditForm; label: string; type?: string; required?: boolean }> = [
+  const handleAddManually = async () => {
+    if (!actor) return;
+    const required: Array<keyof EditForm> = [
+      "storeNumber",
+      "name",
+      "phone",
+      "companyName",
+      "address",
+      "email",
+      "password",
+    ];
+    for (const field of required) {
+      if (!addForm[field].trim()) {
+        toast.error(
+          `${formFields.find((f) => f.key === field)?.label ?? field} is required.`,
+        );
+        return;
+      }
+    }
+    if (customers.some((c) => c.storeNumber === addForm.storeNumber.trim())) {
+      toast.error("Store Number already exists.");
+      return;
+    }
+    if (customers.some((c) => c.email === addForm.email.trim())) {
+      toast.error("Email already exists.");
+      return;
+    }
+    setIsAddingSaving(true);
+    try {
+      await actor.replaceCustomers(token, [
+        ...customers,
+        formToCustomer(addForm),
+      ]);
+      qc.invalidateQueries({ queryKey: ["admin-customers"] });
+      toast.success("Customer added successfully");
+      setIsAddDialogOpen(false);
+      setAddForm(emptyForm);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to add customer";
+      toast.error(msg);
+    } finally {
+      setIsAddingSaving(false);
+    }
+  };
+
+  const formFields: Array<{
+    key: keyof EditForm;
+    label: string;
+    type?: string;
+    required?: boolean;
+  }> = [
     { key: "storeNumber", label: "Store Number", required: true },
     { key: "name", label: "Name", required: true },
     { key: "phone", label: "Phone", required: true },
@@ -199,7 +286,9 @@ export default function Customers() {
     <div className="space-y-6">
       <div>
         <h1 className="font-heading text-2xl font-bold">Customers</h1>
-        <p className="text-muted-foreground text-sm mt-1">Manage customer stores and login credentials</p>
+        <p className="text-muted-foreground text-sm mt-1">
+          Manage customer stores and login credentials
+        </p>
       </div>
 
       {/* Upload Card */}
@@ -210,7 +299,8 @@ export default function Customers() {
             Upload Customer Data
           </CardTitle>
           <CardDescription>
-            Upload a CSV or Excel file with customer details. Required columns: Store Number, Name, Phone, Company Name, Address, Email, Password.
+            Upload a CSV or Excel file with customer details. Required columns:
+            Store Number, Name, Phone, Company Name, Address, Email, Password.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-3">
@@ -243,6 +333,18 @@ export default function Customers() {
               {isUploading ? "Uploading..." : "Upload File"}
             </Button>
           </div>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setAddForm(emptyForm);
+              setIsAddDialogOpen(true);
+            }}
+            className="gap-2"
+            data-ocid="customers.add_manual_button"
+          >
+            <UserPlus className="w-4 h-4" />
+            Add Customer Manually
+          </Button>
         </CardContent>
       </Card>
 
@@ -269,35 +371,66 @@ export default function Customers() {
           ) : customers.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
-              <p className="text-sm">No customers yet. Upload a CSV file to get started.</p>
+              <p className="text-sm">
+                No customers yet. Upload a CSV file to get started.
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto -mx-6">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Store #</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Name</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Company</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Phone</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Email</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">GST</th>
-                    <th className="text-right px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Store #
+                    </th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Name
+                    </th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Company
+                    </th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Phone
+                    </th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Email
+                    </th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      GST
+                    </th>
+                    <th className="text-right px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {customers.map((customer) => (
-                    <tr key={customer.storeNumber} className="border-b border-border/50 hover:bg-muted/40 transition-colors">
-                      <td className="px-6 py-3 font-mono font-semibold text-primary">{customer.storeNumber}</td>
+                    <tr
+                      key={customer.storeNumber}
+                      className="border-b border-border/50 hover:bg-muted/40 transition-colors"
+                    >
+                      <td className="px-6 py-3 font-mono font-semibold text-primary">
+                        {customer.storeNumber}
+                      </td>
                       <td className="px-4 py-3 font-medium">{customer.name}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{customer.companyName}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{customer.phone}</td>
-                      <td className="px-4 py-3 text-muted-foreground text-xs">{customer.email}</td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {customer.companyName}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {customer.phone}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground text-xs">
+                        {customer.email}
+                      </td>
                       <td className="px-4 py-3">
                         {customer.gstNumber ? (
-                          <span className="text-xs font-mono">{customer.gstNumber}</span>
+                          <span className="text-xs font-mono">
+                            {customer.gstNumber}
+                          </span>
                         ) : (
-                          <span className="text-xs text-muted-foreground/50">—</span>
+                          <span className="text-xs text-muted-foreground/50">
+                            —
+                          </span>
                         )}
                       </td>
                       <td className="px-6 py-3 text-right">
@@ -316,7 +449,9 @@ export default function Customers() {
                             variant="outline"
                             className="h-7 gap-1.5 text-xs text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
                             onClick={() => handleDelete(customer.storeNumber)}
-                            disabled={deletingStoreNumber === customer.storeNumber}
+                            disabled={
+                              deletingStoreNumber === customer.storeNumber
+                            }
                           >
                             {deletingStoreNumber === customer.storeNumber ? (
                               <Loader2 className="w-3 h-3 animate-spin" />
@@ -336,27 +471,119 @@ export default function Customers() {
         </CardContent>
       </Card>
 
-      {/* Edit Customer Dialog */}
-      <Dialog open={!!editingCustomer} onOpenChange={(open) => { if (!open) setEditingCustomer(null); }}>
+      {/* Add Customer Manually Dialog */}
+      <Dialog
+        open={isAddDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsAddDialogOpen(false);
+            setAddForm(emptyForm);
+          }
+        }}
+        data-ocid="customers.add_dialog"
+      >
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="font-heading">Edit Customer</DialogTitle>
+            <DialogTitle className="font-heading">
+              Add Customer Manually
+            </DialogTitle>
             <DialogDescription>
-              Update customer details. Changes will be saved to all portals immediately.
+              Fill in the customer details below. Store Number and Email must be
+              unique.
             </DialogDescription>
           </DialogHeader>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
             {formFields.map(({ key, label, type, required }) => (
-              <div key={key} className={key === "address" ? "sm:col-span-2" : ""}>
+              <div
+                key={key}
+                className={key === "address" ? "sm:col-span-2" : ""}
+              >
+                <Label htmlFor={`add-${key}`} className="text-xs mb-1.5 block">
+                  {label}
+                  {required && (
+                    <span className="text-destructive ml-0.5">*</span>
+                  )}
+                </Label>
+                <Input
+                  id={`add-${key}`}
+                  type={type ?? "text"}
+                  value={addForm[key]}
+                  onChange={(e) =>
+                    setAddForm((prev) => ({ ...prev, [key]: e.target.value }))
+                  }
+                  className="h-9 text-sm"
+                  placeholder={label}
+                  data-ocid={`customers.add.${key.replace(/([A-Z])/g, (m) => `_${m.toLowerCase()}`)}_input`}
+                />
+              </div>
+            ))}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsAddDialogOpen(false);
+                setAddForm(emptyForm);
+              }}
+              disabled={isAddingSaving}
+              data-ocid="customers.add.cancel_button"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddManually}
+              disabled={isAddingSaving || !actor}
+              className="gap-2"
+              data-ocid="customers.add.submit_button"
+            >
+              {isAddingSaving ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <UserPlus className="w-4 h-4" />
+              )}
+              {isAddingSaving ? "Adding..." : "Add Customer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Customer Dialog */}
+      <Dialog
+        open={!!editingCustomer}
+        onOpenChange={(open) => {
+          if (!open) setEditingCustomer(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-heading">Edit Customer</DialogTitle>
+            <DialogDescription>
+              Update customer details. Changes will be saved to all portals
+              immediately.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
+            {formFields.map(({ key, label, type, required }) => (
+              <div
+                key={key}
+                className={key === "address" ? "sm:col-span-2" : ""}
+              >
                 <Label htmlFor={`edit-${key}`} className="text-xs mb-1.5 block">
-                  {label}{required && <span className="text-destructive ml-0.5">*</span>}
+                  {label}
+                  {required && (
+                    <span className="text-destructive ml-0.5">*</span>
+                  )}
                 </Label>
                 <Input
                   id={`edit-${key}`}
                   type={type ?? "text"}
                   value={editForm[key]}
-                  onChange={(e) => setEditForm((prev) => ({ ...prev, [key]: e.target.value }))}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({ ...prev, [key]: e.target.value }))
+                  }
                   className="h-9 text-sm"
                   placeholder={label}
                 />

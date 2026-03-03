@@ -1,31 +1,36 @@
-import { useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useActor } from "../../hooks/useActor";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import {
-  LogOut,
-  Plus,
-  Minus,
-  Trash2,
-  ShoppingCart,
-  Search,
-  Loader2,
-  PackagePlus,
-  CheckCircle2,
-  Building2,
-  MapPin,
-  Truck,
-  CreditCard,
   ArrowLeft,
+  Building2,
+  CheckCircle2,
+  CreditCard,
+  Loader2,
+  LogOut,
+  MapPin,
+  Minus,
+  PackagePlus,
+  Plus,
+  Search,
+  ShoppingCart,
+  Trash2,
+  Truck,
 } from "lucide-react";
-import type { Product, OrderItem } from "../../backend.d";
+import { useState } from "react";
+import { toast } from "sonner";
+import type { OrderItem, Product } from "../../backend.d";
+import { useActor } from "../../hooks/useActor";
 
 interface CartItem {
   productId: bigint;
@@ -52,9 +57,13 @@ export default function OrderPage() {
   const [productSearch, setProductSearch] = useState("");
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [showPaymentStep, setShowPaymentStep] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"cod" | "pay_later">("cod");
+  const [paymentMethod, setPaymentMethod] = useState<"cod" | "pay_later">(
+    "cod",
+  );
 
-  const { data: products = [], isLoading: productsLoading } = useQuery<Product[]>({
+  const { data: products = [], isLoading: productsLoading } = useQuery<
+    Product[]
+  >({
     queryKey: ["active-products"],
     queryFn: () => actor!.getActiveProducts(),
     enabled: !!actor && !isFetching,
@@ -63,7 +72,7 @@ export default function OrderPage() {
   const activeProducts = products.filter((p) => p.active);
 
   const filteredProducts = activeProducts.filter((p) =>
-    p.name.toLowerCase().includes(productSearch.toLowerCase())
+    p.name.toLowerCase().includes(productSearch.toLowerCase()),
   );
 
   const handleLogout = () => {
@@ -98,10 +107,8 @@ export default function OrderPage() {
     if (existing) {
       setCart((prev) =>
         prev.map((c) =>
-          c.productId === selectedProduct.id
-            ? { ...c, qty: c.qty + qty }
-            : c
-        )
+          c.productId === selectedProduct.id ? { ...c, qty: c.qty + qty } : c,
+        ),
       );
       toast.success(`Updated ${selectedProduct.name} quantity`);
     } else {
@@ -133,7 +140,7 @@ export default function OrderPage() {
       return;
     }
     setCart((prev) =>
-      prev.map((c) => (c.productId === productId ? { ...c, qty: newQty } : c))
+      prev.map((c) => (c.productId === productId ? { ...c, qty: newQty } : c)),
     );
   };
 
@@ -167,15 +174,21 @@ export default function OrderPage() {
         address,
         gstNumber || null,
         items,
-        paymentMethod
+        paymentMethod,
       );
 
       localStorage.setItem("a1vs_last_order_id", orderId);
-      localStorage.setItem("a1vs_last_order_cart", JSON.stringify(cart.map((c) => ({
-        ...c,
-        productId: c.productId.toString(),
-      }))));
-      navigate({ to: "/order/confirmation" });
+      localStorage.setItem(
+        "a1vs_last_order_cart",
+        JSON.stringify(
+          cart.map((c) => ({
+            ...c,
+            productId: c.productId.toString(),
+          })),
+        ),
+      );
+      toast.success(`Order placed successfully! Order ID: ${orderId}`);
+      navigate({ to: "/customer/dashboard" });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to place order";
       toast.error(msg);
@@ -185,7 +198,10 @@ export default function OrderPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: "oklch(0.97 0.01 148)" }}>
+    <div
+      className="min-h-screen flex flex-col"
+      style={{ background: "oklch(0.97 0.01 148)" }}
+    >
       {/* Header */}
       <header className="sticky top-0 z-10 border-b border-border bg-white/90 backdrop-blur-sm shadow-xs">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
@@ -194,22 +210,40 @@ export default function OrderPage() {
               src="/assets/uploads/A-One-Vegetables-LOGO-1.png"
               alt="A1VS Logo"
               className="h-8 w-8 object-contain"
-              onError={(e) => (e.currentTarget as HTMLImageElement).style.display = "none"}
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+              }}
             />
             <div>
-              <span className="font-heading font-bold text-sm leading-none">A1VS</span>
-              <span className="hidden sm:block text-xs text-muted-foreground leading-none">AONE VEGETABLES & SUPPLIER</span>
+              <span className="font-heading font-bold text-sm leading-none">
+                A1VS
+              </span>
+              <span className="hidden sm:block text-xs text-muted-foreground leading-none">
+                AONE VEGETABLES & SUPPLIER
+              </span>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleLogout}
-            className="text-muted-foreground hover:text-destructive gap-2"
-          >
-            <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline text-sm">Logout</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate({ to: "/customer/dashboard" })}
+              className="text-muted-foreground hover:text-foreground gap-2"
+              data-ocid="order.back_to_dashboard.button"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span className="hidden sm:inline text-sm">Dashboard</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              className="text-muted-foreground hover:text-destructive gap-2"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline text-sm">Logout</span>
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -217,7 +251,9 @@ export default function OrderPage() {
         {/* Store Info */}
         <div className="bg-white rounded-xl border border-border p-4 space-y-2 shadow-xs">
           <div className="flex items-center gap-2 mb-1">
-            <Badge variant="secondary" className="font-mono">{storeNumber}</Badge>
+            <Badge variant="secondary" className="font-mono">
+              {storeNumber}
+            </Badge>
             <span className="text-xs text-muted-foreground">Order Portal</span>
           </div>
           <div className="flex gap-4 flex-wrap">
@@ -243,17 +279,28 @@ export default function OrderPage() {
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
-              <h2 className="font-heading font-semibold text-base">Select Payment Method</h2>
+              <h2 className="font-heading font-semibold text-base">
+                Select Payment Method
+              </h2>
             </div>
 
             {/* Cart summary */}
             <div className="bg-white rounded-xl border border-border p-4 shadow-xs">
-              <p className="text-xs text-muted-foreground mb-2">Order Summary</p>
+              <p className="text-xs text-muted-foreground mb-2">
+                Order Summary
+              </p>
               <div className="space-y-1 mb-3">
                 {cart.map((item) => (
-                  <div key={item.productId.toString()} className="flex justify-between text-sm">
-                    <span>{item.productName} × {item.qty} {item.unit}</span>
-                    <span className="font-medium">₹{(item.qty * item.rate).toFixed(2)}</span>
+                  <div
+                    key={item.productId.toString()}
+                    className="flex justify-between text-sm"
+                  >
+                    <span>
+                      {item.productName} × {item.qty} {item.unit}
+                    </span>
+                    <span className="font-medium">
+                      ₹{(item.qty * item.rate).toFixed(2)}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -274,19 +321,33 @@ export default function OrderPage() {
                     : "border-border hover:border-primary/40 bg-white"
                 }`}
               >
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                  paymentMethod === "cod" ? "bg-primary text-primary-foreground" : "bg-muted"
-                }`}>
+                <div
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                    paymentMethod === "cod"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted"
+                  }`}
+                >
                   <Truck className="w-5 h-5" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-heading font-semibold text-sm">Cash on Delivery</p>
-                  <p className="text-xs text-muted-foreground">Pay when your order arrives</p>
+                  <p className="font-heading font-semibold text-sm">
+                    Cash on Delivery
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Pay when your order arrives
+                  </p>
                 </div>
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                  paymentMethod === "cod" ? "border-primary" : "border-muted-foreground/30"
-                }`}>
-                  {paymentMethod === "cod" && <div className="w-3 h-3 rounded-full bg-primary" />}
+                <div
+                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                    paymentMethod === "cod"
+                      ? "border-primary"
+                      : "border-muted-foreground/30"
+                  }`}
+                >
+                  {paymentMethod === "cod" && (
+                    <div className="w-3 h-3 rounded-full bg-primary" />
+                  )}
                 </div>
               </button>
 
@@ -299,19 +360,33 @@ export default function OrderPage() {
                     : "border-border hover:border-primary/40 bg-white"
                 }`}
               >
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                  paymentMethod === "pay_later" ? "bg-primary text-primary-foreground" : "bg-muted"
-                }`}>
+                <div
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                    paymentMethod === "pay_later"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted"
+                  }`}
+                >
                   <CreditCard className="w-5 h-5" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-heading font-semibold text-sm">Pay Later</p>
-                  <p className="text-xs text-muted-foreground">Add to your account balance</p>
+                  <p className="font-heading font-semibold text-sm">
+                    Pay Later
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Add to your account balance
+                  </p>
                 </div>
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                  paymentMethod === "pay_later" ? "border-primary" : "border-muted-foreground/30"
-                }`}>
-                  {paymentMethod === "pay_later" && <div className="w-3 h-3 rounded-full bg-primary" />}
+                <div
+                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                    paymentMethod === "pay_later"
+                      ? "border-primary"
+                      : "border-muted-foreground/30"
+                  }`}
+                >
+                  {paymentMethod === "pay_later" && (
+                    <div className="w-3 h-3 rounded-full bg-primary" />
+                  )}
                 </div>
               </button>
             </div>
@@ -340,9 +415,13 @@ export default function OrderPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <ShoppingCart className="w-5 h-5 text-primary" />
-                <h2 className="font-heading font-semibold text-base">Your Order</h2>
+                <h2 className="font-heading font-semibold text-base">
+                  Your Order
+                </h2>
                 {cart.length > 0 && (
-                  <Badge className="bg-primary/10 text-primary border-0">{totalItems} items</Badge>
+                  <Badge className="bg-primary/10 text-primary border-0">
+                    {totalItems} items
+                  </Badge>
                 )}
               </div>
               <Button
@@ -360,8 +439,12 @@ export default function OrderPage() {
             {cart.length === 0 ? (
               <div className="bg-white rounded-xl border border-border p-10 text-center shadow-xs">
                 <ShoppingCart className="w-12 h-12 mx-auto mb-3 text-muted-foreground/30" />
-                <p className="font-heading font-medium text-muted-foreground">Cart is empty</p>
-                <p className="text-sm text-muted-foreground mt-1">Press "Add Item" to start your order</p>
+                <p className="font-heading font-medium text-muted-foreground">
+                  Cart is empty
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Press "Add Item" to start your order
+                </p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -371,15 +454,20 @@ export default function OrderPage() {
                     className="bg-white rounded-xl border border-border px-4 py-3 flex items-center gap-3 shadow-xs"
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{item.productName}</p>
+                      <p className="font-medium text-sm truncate">
+                        {item.productName}
+                      </p>
                       <p className="text-xs text-muted-foreground">
-                        {item.unit} · ₹{item.rate} each · Total: ₹{(item.qty * item.rate).toFixed(2)}
+                        {item.unit} · ₹{item.rate} each · Total: ₹
+                        {(item.qty * item.rate).toFixed(2)}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <button
                         type="button"
-                        onClick={() => handleUpdateQty(item.productId, item.qty - 1)}
+                        onClick={() =>
+                          handleUpdateQty(item.productId, item.qty - 1)
+                        }
                         className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-colors"
                       >
                         <Minus className="w-3.5 h-3.5" />
@@ -388,12 +476,19 @@ export default function OrderPage() {
                         type="number"
                         min={1}
                         value={item.qty}
-                        onChange={(e) => handleUpdateQty(item.productId, parseInt(e.target.value) || 1)}
+                        onChange={(e) =>
+                          handleUpdateQty(
+                            item.productId,
+                            Number.parseInt(e.target.value) || 1,
+                          )
+                        }
                         className="w-12 text-center text-sm font-semibold border border-border rounded-lg h-7 focus:outline-none focus:ring-1 focus:ring-primary"
                       />
                       <button
                         type="button"
-                        onClick={() => handleUpdateQty(item.productId, item.qty + 1)}
+                        onClick={() =>
+                          handleUpdateQty(item.productId, item.qty + 1)
+                        }
                         className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-colors"
                       >
                         <Plus className="w-3.5 h-3.5" />
@@ -412,8 +507,12 @@ export default function OrderPage() {
                 {/* Order total */}
                 <div className="bg-white rounded-xl border border-border px-4 py-3 shadow-xs">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Order Total</span>
-                    <span className="font-bold text-lg text-primary">₹{totalAmount.toFixed(2)}</span>
+                    <span className="text-sm text-muted-foreground">
+                      Order Total
+                    </span>
+                    <span className="font-bold text-lg text-primary">
+                      ₹{totalAmount.toFixed(2)}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -469,7 +568,9 @@ export default function OrderPage() {
                   </div>
                 ) : (
                   filteredProducts.map((product) => {
-                    const isInCart = cart.some((c) => c.productId === product.id);
+                    const isInCart = cart.some(
+                      (c) => c.productId === product.id,
+                    );
                     return (
                       <button
                         key={product.id.toString()}
@@ -478,13 +579,17 @@ export default function OrderPage() {
                         className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-muted transition-colors flex items-center justify-between group"
                       >
                         <div>
-                          <span className="text-sm font-medium">{product.name}</span>
+                          <span className="text-sm font-medium">
+                            {product.name}
+                          </span>
                           <span className="text-xs text-muted-foreground ml-2">
                             {product.unit} · ₹{product.rate}
                           </span>
                         </div>
                         {isInCart ? (
-                          <Badge className="bg-success/15 text-success border-0 text-xs">In cart</Badge>
+                          <Badge className="bg-success/15 text-success border-0 text-xs">
+                            In cart
+                          </Badge>
                         ) : (
                           <Plus className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                         )}
@@ -497,21 +602,30 @@ export default function OrderPage() {
           ) : (
             <div className="px-5 py-4 space-y-4">
               <div className="bg-muted/50 rounded-xl p-3">
-                <p className="text-xs text-muted-foreground mb-0.5">Selected product</p>
-                <p className="font-heading font-semibold">{selectedProduct.name}</p>
+                <p className="text-xs text-muted-foreground mb-0.5">
+                  Selected product
+                </p>
+                <p className="font-heading font-semibold">
+                  {selectedProduct.name}
+                </p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {selectedProduct.unit} · ₹{selectedProduct.rate} per {selectedProduct.unit.toLowerCase()}
+                  {selectedProduct.unit} · ₹{selectedProduct.rate} per{" "}
+                  {selectedProduct.unit.toLowerCase()}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="qty-input">Quantity ({selectedProduct.unit})</Label>
+                <Label htmlFor="qty-input">
+                  Quantity ({selectedProduct.unit})
+                </Label>
                 <Input
                   id="qty-input"
                   type="number"
                   min={1}
                   value={qty}
-                  onChange={(e) => setQty(Math.max(1, parseInt(e.target.value) || 1))}
+                  onChange={(e) =>
+                    setQty(Math.max(1, Number.parseInt(e.target.value) || 1))
+                  }
                   className="h-11 text-base font-semibold"
                   autoFocus
                 />
@@ -544,7 +658,10 @@ export default function OrderPage() {
 
       <footer className="text-center py-4 text-xs text-muted-foreground border-t border-border">
         © 2026. Built with ♥ using{" "}
-        <a href="https://caffeine.ai" className="underline hover:text-foreground transition-colors">
+        <a
+          href="https://caffeine.ai"
+          className="underline hover:text-foreground transition-colors"
+        >
           caffeine.ai
         </a>
       </footer>

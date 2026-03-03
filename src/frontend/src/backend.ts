@@ -132,6 +132,7 @@ export interface Order {
     paymentMethod: string;
     storeNumber: string;
     gstNumber?: string;
+    deleteReason?: string;
     orderId: string;
     invoiceNumber?: string;
     totalAmount: number;
@@ -171,7 +172,9 @@ export interface backendInterface {
     createSubUser(token: string, email: string, role: UserRole): Promise<void>;
     createSubUserWithPassword(token: string, email: string, password: string, roleText: string): Promise<void>;
     customerLogin(storeNumber: string, password: string): Promise<string>;
+    deleteOrder(token: string, orderId: string, reason: string): Promise<void>;
     editOrderItems(token: string, orderId: string, newItems: Array<OrderItem>): Promise<void>;
+    editPayment(token: string, paymentId: string, storeNumber: string, companyName: string, amount: number, paymentMethod: string, chequeDetails: string | null, utrDetails: string | null): Promise<void>;
     getActiveProducts(): Promise<Array<Product>>;
     getAllCustomers(token: string): Promise<Array<Customer>>;
     getAllOrders(token: string): Promise<Array<Order>>;
@@ -189,6 +192,7 @@ export interface backendInterface {
     getMyStatement(token: string, _fromTime: bigint, _toTime: bigint): Promise<Array<StatementEntry>>;
     getOrdersByStore(token: string, storeNumber: string): Promise<Array<Order>>;
     getPaymentsByStore(token: string, storeNumber: string): Promise<Array<Payment>>;
+    getWebhookUrl(token: string): Promise<string>;
     placeOrder(token: string, storeNumber: string, companyName: string, address: string, items: Array<OrderItem>): Promise<string>;
     placeOrderV2(token: string, storeNumber: string, companyName: string, address: string, gstNumber: string | null, items: Array<OrderItem>, paymentMethod: string): Promise<string>;
     replaceCustomers(token: string, customerList: Array<Customer>): Promise<void>;
@@ -199,6 +203,7 @@ export interface backendInterface {
     subUserLoginV2(email: string, password: string): Promise<string>;
     toggleProduct(token: string, productId: bigint): Promise<void>;
     toggleSubUser(token: string, email: string): Promise<void>;
+    updateCustomer(token: string, storeNumber: string, updatedCustomer: Customer): Promise<void>;
     updateOrderStatus(token: string, orderId: string, status: string): Promise<void>;
     updateProductRate(token: string, productId: bigint, newRate: number): Promise<void>;
 }
@@ -303,6 +308,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async deleteOrder(arg0: string, arg1: string, arg2: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteOrder(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteOrder(arg0, arg1, arg2);
+            return result;
+        }
+    }
     async editOrderItems(arg0: string, arg1: string, arg2: Array<OrderItem>): Promise<void> {
         if (this.processError) {
             try {
@@ -314,6 +333,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.editOrderItems(arg0, arg1, arg2);
+            return result;
+        }
+    }
+    async editPayment(arg0: string, arg1: string, arg2: string, arg3: string, arg4: number, arg5: string, arg6: string | null, arg7: string | null): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.editPayment(arg0, arg1, arg2, arg3, arg4, arg5, to_candid_opt_n1(this._uploadFile, this._downloadFile, arg6), to_candid_opt_n1(this._uploadFile, this._downloadFile, arg7));
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.editPayment(arg0, arg1, arg2, arg3, arg4, arg5, to_candid_opt_n1(this._uploadFile, this._downloadFile, arg6), to_candid_opt_n1(this._uploadFile, this._downloadFile, arg7));
             return result;
         }
     }
@@ -490,6 +523,20 @@ export class Backend implements backendInterface {
             return from_candid_vec_n11(this._uploadFile, this._downloadFile, result);
         }
     }
+    async getWebhookUrl(arg0: string): Promise<string> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getWebhookUrl(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getWebhookUrl(arg0);
+            return result;
+        }
+    }
     async placeOrder(arg0: string, arg1: string, arg2: string, arg3: string, arg4: Array<OrderItem>): Promise<string> {
         if (this.processError) {
             try {
@@ -630,6 +677,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async updateCustomer(arg0: string, arg1: string, arg2: Customer): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateCustomer(arg0, arg1, to_candid_Customer_n17(this._uploadFile, this._downloadFile, arg2));
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateCustomer(arg0, arg1, to_candid_Customer_n17(this._uploadFile, this._downloadFile, arg2));
+            return result;
+        }
+    }
     async updateOrderStatus(arg0: string, arg1: string, arg2: string): Promise<void> {
         if (this.processError) {
             try {
@@ -689,6 +750,7 @@ function from_candid_record_n10(_uploadFile: (file: ExternalBlob) => Promise<Uin
     paymentMethod: string;
     storeNumber: string;
     gstNumber: [] | [string];
+    deleteReason: [] | [string];
     orderId: string;
     invoiceNumber: [] | [string];
     totalAmount: number;
@@ -702,6 +764,7 @@ function from_candid_record_n10(_uploadFile: (file: ExternalBlob) => Promise<Uin
     paymentMethod: string;
     storeNumber: string;
     gstNumber?: string;
+    deleteReason?: string;
     orderId: string;
     invoiceNumber?: string;
     totalAmount: number;
@@ -716,6 +779,7 @@ function from_candid_record_n10(_uploadFile: (file: ExternalBlob) => Promise<Uin
         paymentMethod: value.paymentMethod,
         storeNumber: value.storeNumber,
         gstNumber: record_opt_to_undefined(from_candid_opt_n7(_uploadFile, _downloadFile, value.gstNumber)),
+        deleteReason: record_opt_to_undefined(from_candid_opt_n7(_uploadFile, _downloadFile, value.deleteReason)),
         orderId: value.orderId,
         invoiceNumber: record_opt_to_undefined(from_candid_opt_n7(_uploadFile, _downloadFile, value.invoiceNumber)),
         totalAmount: value.totalAmount,

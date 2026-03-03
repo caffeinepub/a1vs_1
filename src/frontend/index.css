@@ -46,20 +46,20 @@
     --chart-4: 0.70 0.18 35;
     --chart-5: 0.50 0.12 250;
 
-    /* Admin Sidebar — Deep slate */
-    --sidebar: 0.20 0.015 240;
-    --sidebar-foreground: 0.92 0.01 240;
-    --sidebar-primary: 0.65 0.15 148;
+    /* Admin Sidebar — Light green-white */
+    --sidebar: 0.98 0.005 148;
+    --sidebar-foreground: 0.20 0.02 148;
+    --sidebar-primary: 0.42 0.12 148;
     --sidebar-primary-foreground: 0.99 0 0;
-    --sidebar-accent: 0.28 0.02 240;
-    --sidebar-accent-foreground: 0.92 0.01 240;
-    --sidebar-border: 0.30 0.02 240;
-    --sidebar-ring: 0.65 0.15 148;
+    --sidebar-accent: 0.92 0.03 148;
+    --sidebar-accent-foreground: 0.20 0.02 148;
+    --sidebar-border: 0.88 0.02 148;
+    --sidebar-ring: 0.42 0.12 148;
 
     /* App-specific tokens */
-    --admin-bg: 0.13 0.015 240;
-    --admin-surface: 0.18 0.015 240;
-    --admin-border: 0.28 0.02 240;
+    --admin-bg: 0.96 0.008 148;
+    --admin-surface: 0.99 0 0;
+    --admin-border: 0.88 0.02 148;
     --success: 0.60 0.16 145;
     --warning: 0.78 0.14 75;
     --info: 0.60 0.14 240;

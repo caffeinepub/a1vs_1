@@ -1,16 +1,32 @@
-import { useState, useRef } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useActor } from "../../hooks/useActor";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Check,
+  Download,
+  FileSpreadsheet,
+  Loader2,
+  Package,
+  Pencil,
+  RefreshCw,
+  Upload,
+  X,
+} from "lucide-react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { Download, Upload, Package, Loader2, FileSpreadsheet, RefreshCw, Pencil, Check, X } from "lucide-react";
 import * as XLSX from "xlsx";
 import type { Product, ProductInput } from "../../backend.d";
+import { useActor } from "../../hooks/useActor";
 
 interface DefaultProduct {
   name: string;
@@ -145,7 +161,8 @@ export default function Products() {
       toast.success("Product status updated");
     },
     onError: (err: unknown) => {
-      const msg = err instanceof Error ? err.message : "Failed to update product";
+      const msg =
+        err instanceof Error ? err.message : "Failed to update product";
       toast.error(msg);
     },
   });
@@ -170,7 +187,10 @@ export default function Products() {
     const rows = sourceData.map((p) => ({
       Name: p.name,
       Unit: p.unit,
-      Rate: typeof (p as Product).rate === "number" ? (p as Product).rate : (p as DefaultProduct).rate,
+      Rate:
+        typeof (p as Product).rate === "number"
+          ? (p as Product).rate
+          : (p as DefaultProduct).rate,
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
     ws["!cols"] = [{ wch: 30 }, { wch: 10 }, { wch: 12 }];
@@ -193,12 +213,17 @@ export default function Products() {
 
       const items: ProductInput[] = rows
         .map((row) => {
-          const nameVal = row["Name"] ?? row["Product Name"] ?? row["product name"] ?? row["name"];
-          const unitVal = row["Unit"] ?? row["unit"] ?? "KGS";
-          const rateVal = row["Rate"] ?? row["rate"] ?? 0;
+          const nameVal =
+            row.Name ?? row["Product Name"] ?? row["product name"] ?? row.name;
+          const unitVal = row.Unit ?? row.unit ?? "KGS";
+          const rateVal = row.Rate ?? row.rate ?? 0;
           const name = typeof nameVal === "string" ? nameVal.trim() : null;
-          const unit = typeof unitVal === "string" ? unitVal.trim().toUpperCase() : "KGS";
-          const rate = typeof rateVal === "number" ? rateVal : parseFloat(String(rateVal)) || 0;
+          const unit =
+            typeof unitVal === "string" ? unitVal.trim().toUpperCase() : "KGS";
+          const rate =
+            typeof rateVal === "number"
+              ? rateVal
+              : Number.parseFloat(String(rateVal)) || 0;
           if (!name || name.length === 0) return null;
           return { name, unit, rate };
         })
@@ -206,7 +231,9 @@ export default function Products() {
         .slice(0, 100);
 
       if (items.length === 0) {
-        toast.error("No products found. Ensure columns are named 'Name', 'Unit', 'Rate'");
+        toast.error(
+          "No products found. Ensure columns are named 'Name', 'Unit', 'Rate'",
+        );
         return;
       }
 
@@ -215,7 +242,8 @@ export default function Products() {
       qc.invalidateQueries({ queryKey: ["active-products"] });
       toast.success(`${items.length} products uploaded successfully`);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to upload products";
+      const msg =
+        err instanceof Error ? err.message : "Failed to upload products";
       toast.error(msg);
     } finally {
       setIsUploading(false);
@@ -232,7 +260,8 @@ export default function Products() {
       qc.invalidateQueries({ queryKey: ["active-products"] });
       toast.success("100 default products loaded successfully");
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to load default products";
+      const msg =
+        err instanceof Error ? err.message : "Failed to load default products";
       toast.error(msg);
     } finally {
       setIsLoadingDefaults(false);
@@ -245,8 +274,8 @@ export default function Products() {
   };
 
   const commitEditRate = (product: Product) => {
-    const newRate = parseFloat(editingRateValue);
-    if (isNaN(newRate) || newRate < 0) {
+    const newRate = Number.parseFloat(editingRateValue);
+    if (Number.isNaN(newRate) || newRate < 0) {
       toast.error("Please enter a valid rate");
       return;
     }
@@ -262,7 +291,9 @@ export default function Products() {
     <div className="space-y-6">
       <div>
         <h1 className="font-heading text-2xl font-bold">Products</h1>
-        <p className="text-muted-foreground text-sm mt-1">Manage your vegetable and fruit catalog — update rates daily</p>
+        <p className="text-muted-foreground text-sm mt-1">
+          Manage your vegetable and fruit catalog — update rates daily
+        </p>
       </div>
 
       {/* Upload Card */}
@@ -273,11 +304,16 @@ export default function Products() {
             Product Management
           </CardTitle>
           <CardDescription>
-            Download the template (with current products), edit rates/names, then re-upload. Template columns: Name, Unit (KGS/EACH), Rate.
+            Download the template (with current products), edit rates/names,
+            then re-upload. Template columns: Name, Unit (KGS/EACH), Rate.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-3">
-          <Button variant="outline" onClick={handleDownloadTemplate} className="gap-2">
+          <Button
+            variant="outline"
+            onClick={handleDownloadTemplate}
+            className="gap-2"
+          >
             <Download className="w-4 h-4" />
             Download Template
           </Button>
@@ -294,7 +330,11 @@ export default function Products() {
               disabled={isUploading || !actor}
               className="gap-2"
             >
-              {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+              {isUploading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Upload className="w-4 h-4" />
+              )}
               {isUploading ? "Uploading..." : "Upload File"}
             </Button>
           </div>
@@ -304,7 +344,11 @@ export default function Products() {
             disabled={isLoadingDefaults || !actor}
             className="gap-2"
           >
-            {isLoadingDefaults ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            {isLoadingDefaults ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <RefreshCw className="w-4 h-4" />
+            )}
             {isLoadingDefaults ? "Loading..." : "Load 100 Default Products"}
           </Button>
         </CardContent>
@@ -334,30 +378,57 @@ export default function Products() {
             <div className="text-center py-12 text-muted-foreground">
               <Package className="w-10 h-10 mx-auto mb-3 opacity-30" />
               <p className="text-sm font-medium">No products yet</p>
-              <p className="text-xs mt-1">Upload an Excel file or click "Load 100 Default Products"</p>
+              <p className="text-xs mt-1">
+                Upload an Excel file or click "Load 100 Default Products"
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto -mx-6">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">#</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Product Name</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Unit</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Rate (₹)</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Toggle</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      #
+                    </th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Product Name
+                    </th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Unit
+                    </th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Rate (₹)
+                    </th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Toggle
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {products.map((product, idx) => {
-                    const isEditingRate = editingRateId === product.id.toString();
+                    const isEditingRate =
+                      editingRateId === product.id.toString();
                     return (
-                      <tr key={product.id.toString()} className="border-b border-border/50 hover:bg-muted/40 transition-colors">
-                        <td className="px-6 py-3 text-muted-foreground text-xs">{idx + 1}</td>
-                        <td className="px-4 py-3 font-medium">{product.name}</td>
+                      <tr
+                        key={product.id.toString()}
+                        className="border-b border-border/50 hover:bg-muted/40 transition-colors"
+                      >
+                        <td className="px-6 py-3 text-muted-foreground text-xs">
+                          {idx + 1}
+                        </td>
+                        <td className="px-4 py-3 font-medium">
+                          {product.name}
+                        </td>
                         <td className="px-4 py-3">
-                          <Badge variant="outline" className="text-xs font-mono">{product.unit}</Badge>
+                          <Badge
+                            variant="outline"
+                            className="text-xs font-mono"
+                          >
+                            {product.unit}
+                          </Badge>
                         </td>
                         <td className="px-4 py-3">
                           {isEditingRate ? (
@@ -366,9 +437,12 @@ export default function Products() {
                                 type="number"
                                 min={0}
                                 value={editingRateValue}
-                                onChange={(e) => setEditingRateValue(e.target.value)}
+                                onChange={(e) =>
+                                  setEditingRateValue(e.target.value)
+                                }
                                 onKeyDown={(e) => {
-                                  if (e.key === "Enter") commitEditRate(product);
+                                  if (e.key === "Enter")
+                                    commitEditRate(product);
                                   if (e.key === "Escape") cancelEditRate();
                                 }}
                                 className="h-7 w-20 text-xs"
@@ -396,14 +470,18 @@ export default function Products() {
                               onClick={() => startEditRate(product)}
                               className="flex items-center gap-1.5 group text-sm"
                             >
-                              <span className="font-semibold">₹{product.rate}</span>
+                              <span className="font-semibold">
+                                ₹{product.rate}
+                              </span>
                               <Pencil className="w-3 h-3 text-muted-foreground/40 group-hover:text-primary transition-colors" />
                             </button>
                           )}
                         </td>
                         <td className="px-4 py-3">
                           {product.active ? (
-                            <Badge className="bg-success/15 text-success border-0">Active</Badge>
+                            <Badge className="bg-success/15 text-success border-0">
+                              Active
+                            </Badge>
                           ) : (
                             <Badge variant="secondary">Inactive</Badge>
                           )}
@@ -412,7 +490,9 @@ export default function Products() {
                           <Switch
                             id={`toggle-${product.id}`}
                             checked={product.active}
-                            onCheckedChange={() => toggleMutation.mutate(product.id)}
+                            onCheckedChange={() =>
+                              toggleMutation.mutate(product.id)
+                            }
                             disabled={toggleMutation.isPending}
                           />
                         </td>

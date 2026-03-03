@@ -1,17 +1,42 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useActor } from "../../hooks/useActor";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Briefcase,
+  Calculator,
+  KeyRound,
+  Loader2,
+  ShieldCheck,
+  UserCog,
+  UserPlus,
+} from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
-import { UserPlus, Loader2, UserCog, ShieldCheck, Briefcase, Calculator, KeyRound } from "lucide-react";
 import type { SubUser } from "../../backend.d";
+import { useActor } from "../../hooks/useActor";
 
 const roles = [
   {
@@ -57,7 +82,8 @@ export default function Users() {
   });
 
   const createMutation = useMutation({
-    mutationFn: () => actor!.createSubUserWithPassword(token, email, password, role),
+    mutationFn: () =>
+      actor!.createSubUserWithPassword(token, email, password, role),
     onSuccess: () => {
       toast.success(`Sub-user ${email} created`);
       setEmail("");
@@ -91,7 +117,9 @@ export default function Users() {
       setNewPwd("");
     },
     onError: (err: unknown) => {
-      toast.error(err instanceof Error ? err.message : "Failed to change password");
+      toast.error(
+        err instanceof Error ? err.message : "Failed to change password",
+      );
     },
   });
 
@@ -116,7 +144,9 @@ export default function Users() {
     <div className="space-y-6">
       <div>
         <h1 className="font-heading text-2xl font-bold">Users</h1>
-        <p className="text-muted-foreground text-sm mt-1">Create and manage admin portal team accounts</p>
+        <p className="text-muted-foreground text-sm mt-1">
+          Create and manage admin portal team accounts
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -128,7 +158,8 @@ export default function Users() {
               Create Team Account
             </CardTitle>
             <CardDescription>
-              Create accounts for Store Manager, Account Team, or Purchase Manager with their own email/password.
+              Create accounts for Store Manager, Account Team, or Purchase
+              Manager with their own email/password.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -157,13 +188,19 @@ export default function Users() {
               </div>
               <div className="space-y-2">
                 <Label>Role / Position</Label>
-                <Select value={role} onValueChange={setRole} disabled={createMutation.isPending}>
+                <Select
+                  value={role}
+                  onValueChange={setRole}
+                  disabled={createMutation.isPending}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {roles.map(({ value, label }) => (
-                      <SelectItem key={value} value={value}>{label}</SelectItem>
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -203,13 +240,17 @@ export default function Users() {
               <CardContent className="flex items-center gap-4 p-4">
                 <div
                   className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                    role === value ? "bg-primary text-primary-foreground" : "bg-muted"
+                    role === value
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted"
                   }`}
                 >
                   <Icon className="w-5 h-5" />
                 </div>
                 <div>
-                  <div className="font-heading font-semibold text-sm">{label}</div>
+                  <div className="font-heading font-semibold text-sm">
+                    {label}
+                  </div>
                   <div className="text-xs text-muted-foreground">{desc}</div>
                 </div>
                 <UserCog
@@ -232,7 +273,9 @@ export default function Users() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="text-center py-8 text-muted-foreground text-sm">Loading...</div>
+            <div className="text-center py-8 text-muted-foreground text-sm">
+              Loading...
+            </div>
           ) : subUsers.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground text-sm">
               No team accounts yet. Create one above.
@@ -246,7 +289,9 @@ export default function Users() {
                 >
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm truncate">{user.email}</p>
-                    <p className="text-xs text-muted-foreground">{getRoleLabel(user.roleText)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {getRoleLabel(user.roleText)}
+                    </p>
                   </div>
                   <Badge
                     className={
@@ -282,7 +327,10 @@ export default function Users() {
       </Card>
 
       {/* Change Password Modal */}
-      <Dialog open={!!changePwdUser} onOpenChange={(open) => !open && setChangePwdUser(null)}>
+      <Dialog
+        open={!!changePwdUser}
+        onOpenChange={(open) => !open && setChangePwdUser(null)}
+      >
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="font-heading">Change Password</DialogTitle>
@@ -302,7 +350,11 @@ export default function Users() {
               />
             </div>
             <div className="flex gap-3">
-              <Button variant="outline" onClick={() => setChangePwdUser(null)} className="flex-1">
+              <Button
+                variant="outline"
+                onClick={() => setChangePwdUser(null)}
+                className="flex-1"
+              >
                 Cancel
               </Button>
               <Button
@@ -310,11 +362,16 @@ export default function Users() {
                 disabled={changePwdMutation.isPending || newPwd.length < 6}
                 onClick={() => {
                   if (changePwdUser) {
-                    changePwdMutation.mutate({ userEmail: changePwdUser.email, pwd: newPwd });
+                    changePwdMutation.mutate({
+                      userEmail: changePwdUser.email,
+                      pwd: newPwd,
+                    });
                   }
                 }}
               >
-                {changePwdMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                {changePwdMutation.isPending && (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                )}
                 Update
               </Button>
             </div>

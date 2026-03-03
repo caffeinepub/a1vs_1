@@ -1,13 +1,19 @@
-import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { useActor } from "../../hooks/useActor";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { useMutation } from "@tanstack/react-query";
+import { Link2, Loader2, Lock, Save } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Link2, Lock, Save } from "lucide-react";
+import { useActor } from "../../hooks/useActor";
 
 export default function Settings() {
   const { actor } = useActor();
@@ -21,7 +27,8 @@ export default function Settings() {
     mutationFn: () => actor!.setWebhookUrl(token, webhookUrl),
     onSuccess: () => toast.success("Webhook URL saved successfully"),
     onError: (err: unknown) => {
-      const msg = err instanceof Error ? err.message : "Failed to save webhook URL";
+      const msg =
+        err instanceof Error ? err.message : "Failed to save webhook URL";
       toast.error(msg);
     },
   });
@@ -34,7 +41,8 @@ export default function Settings() {
       setConfirmPassword("");
     },
     onError: (err: unknown) => {
-      const msg = err instanceof Error ? err.message : "Failed to change password";
+      const msg =
+        err instanceof Error ? err.message : "Failed to change password";
       toast.error(msg);
     },
   });
@@ -77,7 +85,9 @@ export default function Settings() {
     <div className="space-y-6">
       <div>
         <h1 className="font-heading text-2xl font-bold">Settings</h1>
-        <p className="text-muted-foreground text-sm mt-1">Configure integrations and account settings</p>
+        <p className="text-muted-foreground text-sm mt-1">
+          Configure integrations and account settings
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -89,7 +99,8 @@ export default function Settings() {
               Google Sheets Integration
             </CardTitle>
             <CardDescription>
-              Configure a Google Apps Script webhook URL to sync orders to Google Sheets automatically when an order is placed.
+              Configure a Google Apps Script webhook URL to sync orders to
+              Google Sheets automatically when an order is placed.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -105,7 +116,8 @@ export default function Settings() {
                   disabled={webhookMutation.isPending}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Deploy a Google Apps Script as a web app and paste the URL here.
+                  Deploy a Google Apps Script as a web app and paste the URL
+                  here.
                 </p>
               </div>
               <Button
@@ -125,7 +137,9 @@ export default function Settings() {
             <Separator className="my-6" />
 
             <div className="space-y-3">
-              <p className="text-sm font-medium">How to set up Google Sheets sync:</p>
+              <p className="text-sm font-medium">
+                How to set up Google Sheets sync:
+              </p>
               <ol className="text-xs text-muted-foreground space-y-2 list-decimal list-inside">
                 <li>Open Google Sheets and go to Extensions → Apps Script</li>
                 <li>Create a doPost(e) function to receive order data</li>

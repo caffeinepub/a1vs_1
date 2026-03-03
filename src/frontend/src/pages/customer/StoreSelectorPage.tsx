@@ -1,11 +1,20 @@
-import { useState } from "react";
-import { useNavigate, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
+import { Link, useNavigate } from "@tanstack/react-router";
+import {
+  ArrowRight,
+  Building2,
+  FileBarChart,
+  LayoutDashboard,
+  Loader2,
+  MapPin,
+  ShoppingBag,
+  Store,
+} from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
-import { ArrowRight, Store, Loader2, Building2, MapPin, ShoppingBag, FileBarChart, LayoutDashboard } from "lucide-react";
 import { useActor } from "../../hooks/useActor";
 
 type StoreInfo = {
@@ -100,7 +109,10 @@ export default function StoreSelectorPage() {
   return (
     <div
       className="min-h-screen flex flex-col"
-      style={{ background: "linear-gradient(135deg, oklch(0.96 0.02 148) 0%, oklch(0.92 0.04 148) 100%)" }}
+      style={{
+        background:
+          "linear-gradient(135deg, oklch(0.96 0.02 148) 0%, oklch(0.92 0.04 148) 100%)",
+      }}
     >
       {/* Decorative background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -133,10 +145,16 @@ export default function StoreSelectorPage() {
               >
                 A1VS
               </h1>
-              <p className="text-xs tracking-widest uppercase mt-0.5 font-medium" style={{ color: "oklch(0.45 0.08 148)" }}>
+              <p
+                className="text-xs tracking-widest uppercase mt-0.5 font-medium"
+                style={{ color: "oklch(0.45 0.08 148)" }}
+              >
                 AONE VEGETABLES & SUPPLIER
               </p>
-              <p className="mt-2 text-sm" style={{ color: "oklch(0.50 0.06 148)" }}>
+              <p
+                className="mt-2 text-sm"
+                style={{ color: "oklch(0.50 0.06 148)" }}
+              >
                 Fresh Vegetable &amp; Fruit Ordering Portal
               </p>
             </div>
@@ -145,7 +163,10 @@ export default function StoreSelectorPage() {
 
         {/* Logged in — Show navigation cards */}
         {isLoggedIn ? (
-          <div className="w-full max-w-md space-y-4 animate-slide-up" style={{ animationDelay: "0.1s" }}>
+          <div
+            className="w-full max-w-md space-y-4 animate-slide-up"
+            style={{ animationDelay: "0.1s" }}
+          >
             {/* Welcome card */}
             <Card className="border-0 shadow-xl bg-white/95">
               <CardContent className="p-5">
@@ -154,8 +175,12 @@ export default function StoreSelectorPage() {
                     <Store className="w-5 h-5 text-primary" />
                   </div>
                   <div>
-                    <p className="font-heading font-semibold text-sm">Welcome back!</p>
-                    <p className="text-xs text-muted-foreground">{currentCompany} · Store #{currentStore}</p>
+                    <p className="font-heading font-semibold text-sm">
+                      Welcome back!
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {currentCompany} · Store #{currentStore}
+                    </p>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 gap-3">
@@ -165,8 +190,12 @@ export default function StoreSelectorPage() {
                         <LayoutDashboard className="w-5 h-5 text-primary group-hover:text-primary-foreground" />
                       </div>
                       <div className="flex-1">
-                        <p className="font-heading font-semibold text-sm">Go to Dashboard</p>
-                        <p className="text-xs text-muted-foreground">View orders, statement & tracking</p>
+                        <p className="font-heading font-semibold text-sm">
+                          Go to Dashboard
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          View orders, statement & tracking
+                        </p>
                       </div>
                       <ArrowRight className="w-4 h-4 text-muted-foreground" />
                     </div>
@@ -177,8 +206,12 @@ export default function StoreSelectorPage() {
                         <ShoppingBag className="w-5 h-5 text-muted-foreground" />
                       </div>
                       <div className="flex-1">
-                        <p className="font-heading font-semibold text-sm">Place New Order</p>
-                        <p className="text-xs text-muted-foreground">Browse products and place order</p>
+                        <p className="font-heading font-semibold text-sm">
+                          Place New Order
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Browse products and place order
+                        </p>
                       </div>
                       <ArrowRight className="w-4 h-4 text-muted-foreground" />
                     </div>
@@ -189,8 +222,12 @@ export default function StoreSelectorPage() {
                         <Building2 className="w-5 h-5 text-muted-foreground" />
                       </div>
                       <div className="flex-1">
-                        <p className="font-heading font-semibold text-sm">My Orders</p>
-                        <p className="text-xs text-muted-foreground">View order history & invoices</p>
+                        <p className="font-heading font-semibold text-sm">
+                          My Orders
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          View order history & invoices
+                        </p>
                       </div>
                       <ArrowRight className="w-4 h-4 text-muted-foreground" />
                     </div>
@@ -201,8 +238,12 @@ export default function StoreSelectorPage() {
                         <FileBarChart className="w-5 h-5 text-muted-foreground" />
                       </div>
                       <div className="flex-1">
-                        <p className="font-heading font-semibold text-sm">My Statement</p>
-                        <p className="text-xs text-muted-foreground">Account statement & PDF download</p>
+                        <p className="font-heading font-semibold text-sm">
+                          My Statement
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Account statement & PDF download
+                        </p>
                       </div>
                       <ArrowRight className="w-4 h-4 text-muted-foreground" />
                     </div>
@@ -233,8 +274,12 @@ export default function StoreSelectorPage() {
                       <Store className="w-4 h-4 text-primary" />
                     </div>
                     <div>
-                      <p className="font-heading font-semibold text-sm">Find Your Store</p>
-                      <p className="text-xs text-muted-foreground">Enter your store number to continue</p>
+                      <p className="font-heading font-semibold text-sm">
+                        Find Your Store
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Enter your store number to continue
+                      </p>
                     </div>
                   </div>
                   <form onSubmit={handleFindStore} className="space-y-4">
@@ -277,8 +322,12 @@ export default function StoreSelectorPage() {
                         <Store className="w-4 h-4 text-success" />
                       </div>
                       <div>
-                        <p className="font-heading font-semibold text-sm text-success">Store Found!</p>
-                        <p className="text-xs text-muted-foreground">Confirm your details below</p>
+                        <p className="font-heading font-semibold text-sm text-success">
+                          Store Found!
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Confirm your details below
+                        </p>
                       </div>
                     </div>
 
@@ -286,14 +335,20 @@ export default function StoreSelectorPage() {
                       <div className="flex gap-3">
                         <Building2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                         <div>
-                          <p className="text-xs text-muted-foreground">Company</p>
-                          <p className="font-semibold text-sm">{storeInfo.companyName}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Company
+                          </p>
+                          <p className="font-semibold text-sm">
+                            {storeInfo.companyName}
+                          </p>
                         </div>
                       </div>
                       <div className="flex gap-3">
                         <MapPin className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                         <div>
-                          <p className="text-xs text-muted-foreground">Address</p>
+                          <p className="text-xs text-muted-foreground">
+                            Address
+                          </p>
                           <p className="text-sm">{storeInfo.address}</p>
                         </div>
                       </div>
@@ -352,7 +407,10 @@ export default function StoreSelectorPage() {
         {/* Admin link */}
         <p className="mt-6 text-xs text-muted-foreground">
           Admin?{" "}
-          <a href="/admin" className="underline hover:text-foreground transition-colors">
+          <a
+            href="/admin"
+            className="underline hover:text-foreground transition-colors"
+          >
             Go to Admin Portal
           </a>
         </p>
@@ -361,7 +419,10 @@ export default function StoreSelectorPage() {
       {/* Footer */}
       <footer className="relative text-center py-4 text-xs text-muted-foreground">
         © 2026. Built with ♥ using{" "}
-        <a href="https://caffeine.ai" className="underline hover:text-foreground transition-colors">
+        <a
+          href="https://caffeine.ai"
+          className="underline hover:text-foreground transition-colors"
+        >
           caffeine.ai
         </a>
       </footer>

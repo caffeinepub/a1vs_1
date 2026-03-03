@@ -7,7 +7,6 @@ import Text "mo:core/Text";
 import Time "mo:core/Time";
 import List "mo:core/List";
 import Nat "mo:core/Nat";
-import Blob "mo:core/Blob";
 import Timer "mo:core/Timer";
 import Float "mo:core/Float";
 
@@ -81,6 +80,7 @@ actor {
     paymentMethod : Text;
     poNumber : Text;
     gstNumber : ?Text;
+    deleteReason : ?Text;
   };
 
   type Payment = {
@@ -362,6 +362,14 @@ actor {
     customers.values().toArray();
   };
 
+  public shared ({ caller }) func updateCustomer(token : Text, storeNumber : Text, updatedCustomer : Customer) : async () {
+    validateSession(token, ?#admin);
+    if (not customers.containsKey(storeNumber)) {
+      Runtime.trap("Customer with store number does not exist");
+    };
+    customers.add(storeNumber, updatedCustomer);
+  };
+
   //---------------------
   // Order Management
   //---------------------
@@ -382,14 +390,13 @@ actor {
       invoiceNumber = null;
       paymentMethod = "cash_on_delivery";
       poNumber = orderId;
+      deleteReason = null;
     };
 
     orders.add(orderId, order);
     orderIdCounter += 1;
 
-    if (webhookUrl != "") {
-      // await outCall.httpPostRequest(webhookUrl, [], "{ \"orderId\": \"" # orderId # "\" }", transform);
-    };
+    if (webhookUrl != "") {};
     orderId;
   };
 
@@ -405,7 +412,6 @@ actor {
     validateSession(token, null);
 
     let orderId = "A1VS-" # orderIdCounter.toText();
-    // Calculate total amount
     var totalAmount = 0.0;
     for (item in items.values()) {
       totalAmount += item.rate * item.qty.toFloat();
@@ -424,14 +430,13 @@ actor {
       paymentMethod;
       poNumber = orderId;
       gstNumber;
+      deleteReason = null;
     };
 
     orders.add(orderId, order);
     orderIdCounter += 1;
 
-    if (webhookUrl != "") {
-      // await outCall.httpPostRequest(webhookUrl, [], "{ \"orderId\": \"" # orderId # "\" }", transform);
-    };
+    if (webhookUrl != "") {};
     orderId;
   };
 
@@ -463,6 +468,7 @@ actor {
           paymentMethod = order.paymentMethod;
           poNumber = order.poNumber;
           gstNumber = order.gstNumber;
+          deleteReason = order.deleteReason;
         };
         orders.add(orderId, updatedOrder);
       };
@@ -475,7 +481,6 @@ actor {
     switch (orders.get(orderId)) {
       case (null) { Runtime.trap("Order not found") };
       case (?existingOrder) {
-        // Calculate new total
         var totalAmount = 0.0;
         for (item in newItems.values()) {
           totalAmount += item.rate * item.qty.toFloat();
@@ -494,8 +499,37 @@ actor {
           paymentMethod = existingOrder.paymentMethod;
           poNumber = existingOrder.poNumber;
           gstNumber = existingOrder.gstNumber;
+          deleteReason = existingOrder.deleteReason;
         };
 
+        orders.add(orderId, updatedOrder);
+      };
+    };
+  };
+
+  //---------------------
+  // New Order Deletion API
+  //---------------------
+  public shared ({ caller }) func deleteOrder(token : Text, orderId : Text, reason : Text) : async () {
+    validateSession(token, ?#admin);
+    switch (orders.get(orderId)) {
+      case (null) { Runtime.trap("Order not found") };
+      case (?order) {
+        let updatedOrder : Order = {
+          orderId = order.orderId;
+          storeNumber = order.storeNumber;
+          companyName = order.companyName;
+          address = order.address;
+          items = order.items;
+          timestamp = order.timestamp;
+          status = "deleted";
+          totalAmount = order.totalAmount;
+          invoiceNumber = order.invoiceNumber;
+          paymentMethod = order.paymentMethod;
+          poNumber = order.poNumber;
+          gstNumber = order.gstNumber;
+          deleteReason = ?reason;
+        };
         orders.add(orderId, updatedOrder);
       };
     };
@@ -531,6 +565,40 @@ actor {
     paymentIdCounter += 1;
   };
 
+  // ---------------------
+  // Edit Payment API (new)
+  // ---------------------
+  public shared ({ caller }) func editPayment(
+    token : Text,
+    paymentId : Text,
+    storeNumber : Text,
+    companyName : Text,
+    amount : Float,
+    paymentMethod : Text,
+    chequeDetails : ?Text,
+    utrDetails : ?Text,
+  ) : async () {
+    validateSession(token, ?#admin);
+
+    switch (payments.get(paymentId)) {
+      case (null) { Runtime.trap("Payment not found") };
+      case (?_payment) {
+        let updatedPayment : Payment = {
+          paymentId;
+          storeNumber;
+          companyName;
+          amount;
+          paymentMethod;
+          chequeDetails;
+          utrDetails;
+          timestamp = Time.now();
+        };
+
+        payments.add(paymentId, updatedPayment);
+      };
+    };
+  };
+
   public shared ({ caller }) func getPaymentsByStore(token : Text, storeNumber : Text) : async [Payment] {
     validateSession(token, null);
     payments.values().filter(func(payment) { payment.storeNumber == storeNumber }).toArray();
@@ -549,7 +617,7 @@ actor {
     let entries = List.empty<StatementEntry>();
 
     for (order in orders.values()) {
-      if (order.storeNumber == storeNumber) {
+      if (order.storeNumber == storeNumber and order.status != "deleted") {
         entries.add(
           {
             entryDate = order.timestamp;
@@ -587,17 +655,19 @@ actor {
     let entries = List.empty<StatementEntry>();
 
     for (order in orders.values()) {
-      entries.add(
-        {
-          entryDate = order.timestamp;
-          entryType = "order";
-          referenceNumber = order.orderId;
-          companyName = order.companyName;
-          storeNumber = order.storeNumber;
-          debit = order.totalAmount;
-          credit = 0.0;
-        }
-      );
+      if (order.status != "deleted") {
+        entries.add(
+          {
+            entryDate = order.timestamp;
+            entryType = "order";
+            referenceNumber = order.orderId;
+            companyName = order.companyName;
+            storeNumber = order.storeNumber;
+            debit = order.totalAmount;
+            credit = 0.0;
+          }
+        );
+      };
     };
 
     for (payment in payments.values()) {
@@ -623,7 +693,38 @@ actor {
       case (?session) {
         switch (session.storeNumber) {
           case (?storeNumber) {
-            await getCustomerStatement(token, storeNumber, _fromTime, _toTime);
+            let entries = List.empty<StatementEntry>();
+            for (order in orders.values()) {
+              if (order.storeNumber == storeNumber and order.status != "deleted") {
+                entries.add(
+                  {
+                    entryDate = order.timestamp;
+                    entryType = "order";
+                    referenceNumber = order.orderId;
+                    companyName = order.companyName;
+                    storeNumber;
+                    debit = order.totalAmount;
+                    credit = 0.0;
+                  }
+                );
+              };
+            };
+            for (payment in payments.values()) {
+              if (payment.storeNumber == storeNumber) {
+                entries.add(
+                  {
+                    entryDate = payment.timestamp;
+                    entryType = "payment";
+                    referenceNumber = payment.paymentId;
+                    companyName = payment.companyName;
+                    storeNumber;
+                    debit = 0.0;
+                    credit = payment.amount;
+                  }
+                );
+              };
+            };
+            entries.toArray();
           };
           case (null) { [] };
         };
@@ -707,4 +808,10 @@ actor {
     validateSession(token, ?#admin);
     webhookUrl := url;
   };
+
+  public shared ({ caller }) func getWebhookUrl(token : Text) : async Text {
+    validateSession(token, ?#admin);
+    webhookUrl;
+  };
 };
+

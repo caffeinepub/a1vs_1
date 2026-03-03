@@ -1,19 +1,24 @@
-import { Outlet, useNavigate, Link, useRouterState } from "@tanstack/react-router";
-import {
-  LayoutDashboard,
-  Package,
-  Users,
-  ShoppingCart,
-  UserCog,
-  Settings,
-  LogOut,
-  ExternalLink,
-  Menu,
-  BarChart3,
-  UserCircle,
-} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import {
+  Link,
+  Outlet,
+  useNavigate,
+  useRouterState,
+} from "@tanstack/react-router";
+import {
+  BarChart3,
+  ExternalLink,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  Package,
+  Settings,
+  ShoppingCart,
+  UserCircle,
+  UserCog,
+  Users,
+} from "lucide-react";
 import { useState } from "react";
 
 const navItems = [
@@ -52,7 +57,8 @@ export default function AdminLayout() {
           <img
             src="/assets/uploads/A-One-Vegetables-LOGO-1.png"
             alt="A1VS Logo"
-            className="h-12 w-12 object-contain rounded-lg shrink-0"
+            className="h-12 w-12 object-contain shrink-0"
+            style={{ background: "none", mixBlendMode: "multiply" }}
             onError={(e) => {
               const target = e.currentTarget as HTMLImageElement;
               target.style.display = "none";
@@ -60,15 +66,19 @@ export default function AdminLayout() {
               if (fallback) fallback.style.display = "flex";
             }}
           />
-          <div
-            className="w-12 h-12 rounded-lg bg-primary items-center justify-center text-primary-foreground font-bold text-lg hidden"
-          >
+          <div className="w-12 h-12 rounded-lg bg-primary items-center justify-center text-primary-foreground font-bold text-lg hidden">
             A
           </div>
           <div>
-            <div className="font-heading font-bold text-base text-sidebar-foreground leading-none">A1VS</div>
-            <div className="text-xs text-sidebar-foreground/50 mt-0.5 leading-tight">AONE VEGETABLES</div>
-            <div className="text-xs text-sidebar-foreground/50 leading-tight">& SUPPLIER</div>
+            <div className="font-heading font-bold text-base text-sidebar-foreground leading-none">
+              A1VS
+            </div>
+            <div className="text-xs text-sidebar-foreground/50 mt-0.5 leading-tight">
+              AONE VEGETABLES
+            </div>
+            <div className="text-xs text-sidebar-foreground/50 leading-tight">
+              & SUPPLIER
+            </div>
           </div>
         </div>
       </div>
@@ -84,7 +94,7 @@ export default function AdminLayout() {
               "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
               isActive(to, exact)
                 ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
             )}
           >
             <Icon className="w-4 h-4 shrink-0" />
@@ -117,9 +127,12 @@ export default function AdminLayout() {
   );
 
   return (
-    <div className="flex h-screen bg-muted/30 overflow-hidden">
+    <div
+      className="flex h-screen overflow-hidden"
+      style={{ background: "oklch(0.96 0.008 148)" }}
+    >
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex flex-col w-64 shrink-0 bg-sidebar border-r border-sidebar-border">
+      <aside className="hidden lg:flex flex-col w-64 shrink-0 bg-white border-r border-sidebar-border shadow-sm">
         <SidebarContent />
       </aside>
 
@@ -133,7 +146,7 @@ export default function AdminLayout() {
             onKeyDown={(e) => e.key === "Escape" && setSidebarOpen(false)}
             aria-label="Close sidebar"
           />
-          <aside className="relative w-64 bg-sidebar border-r border-sidebar-border flex flex-col z-10">
+          <aside className="relative w-64 bg-white border-r border-sidebar-border flex flex-col z-10 shadow-xl">
             <SidebarContent />
           </aside>
         </div>
@@ -152,7 +165,8 @@ export default function AdminLayout() {
             <Menu className="w-5 h-5" />
           </Button>
           <div className="hidden lg:block font-heading font-semibold text-sm text-muted-foreground">
-            {navItems.find(({ to, exact }) => isActive(to, exact))?.label ?? "Admin Portal"}
+            {navItems.find(({ to, exact }) => isActive(to, exact))?.label ??
+              "Admin Portal"}
           </div>
           <Button
             variant="ghost"

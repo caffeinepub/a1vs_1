@@ -1,22 +1,29 @@
-import { RouterProvider, createRouter, createRoute, createRootRoute, redirect, Outlet } from "@tanstack/react-router";
 import { Toaster } from "@/components/ui/sonner";
-import AdminLogin from "./pages/admin/AdminLogin";
-import AdminLayout from "./pages/admin/AdminLayout";
-import Dashboard from "./pages/admin/Dashboard";
-import Products from "./pages/admin/Products";
-import Customers from "./pages/admin/Customers";
-import Orders from "./pages/admin/Orders";
-import Users from "./pages/admin/Users";
-import Settings from "./pages/admin/Settings";
+import {
+  Outlet,
+  RouterProvider,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  redirect,
+} from "@tanstack/react-router";
 import Accounts from "./pages/admin/Accounts";
+import AdminLayout from "./pages/admin/AdminLayout";
+import AdminLogin from "./pages/admin/AdminLogin";
 import AdminProfile from "./pages/admin/AdminProfile";
-import StoreSelectorPage from "./pages/customer/StoreSelectorPage";
-import OrderPage from "./pages/customer/OrderPage";
-import OrderConfirmation from "./pages/customer/OrderConfirmation";
-import CustomerLayout from "./pages/customer/CustomerLayout";
+import Customers from "./pages/admin/Customers";
+import Dashboard from "./pages/admin/Dashboard";
+import Orders from "./pages/admin/Orders";
+import Products from "./pages/admin/Products";
+import Settings from "./pages/admin/Settings";
+import Users from "./pages/admin/Users";
 import CustomerDashboard from "./pages/customer/CustomerDashboard";
+import CustomerLayout from "./pages/customer/CustomerLayout";
 import CustomerOrders from "./pages/customer/CustomerOrders";
 import CustomerStatement from "./pages/customer/CustomerStatement";
+import OrderConfirmation from "./pages/customer/OrderConfirmation";
+import OrderPage from "./pages/customer/OrderPage";
+import StoreSelectorPage from "./pages/customer/StoreSelectorPage";
 
 // Root route
 const rootRoute = createRootRoute({

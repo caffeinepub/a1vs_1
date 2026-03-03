@@ -1,12 +1,12 @@
-import { Link, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useActor } from "../../hooks/useActor";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useQuery } from "@tanstack/react-query";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { FileText, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
-import { ShoppingBag, FileText } from "lucide-react";
 import type { Order } from "../../backend.d";
+import { useActor } from "../../hooks/useActor";
 import { generateInvoicePDF } from "../../utils/pdfUtils";
 
 function formatDate(timestamp: bigint) {
@@ -20,10 +20,29 @@ function formatDate(timestamp: bigint) {
 
 function StatusBadge({ status }: { status: string }) {
   const s = status.toLowerCase();
-  if (s === "delivered") return <Badge className="bg-green-100 text-green-700 border-0 text-xs">Delivered</Badge>;
-  if (s === "accepted") return <Badge className="bg-blue-100 text-blue-700 border-0 text-xs">Accepted</Badge>;
-  if (s === "on_the_way") return <Badge className="bg-orange-100 text-orange-700 border-0 text-xs">On the Way</Badge>;
-  return <Badge className="bg-yellow-100 text-yellow-700 border-0 text-xs">Pending</Badge>;
+  if (s === "delivered")
+    return (
+      <Badge className="bg-green-100 text-green-700 border-0 text-xs">
+        Delivered
+      </Badge>
+    );
+  if (s === "accepted")
+    return (
+      <Badge className="bg-blue-100 text-blue-700 border-0 text-xs">
+        Accepted
+      </Badge>
+    );
+  if (s === "on_the_way")
+    return (
+      <Badge className="bg-orange-100 text-orange-700 border-0 text-xs">
+        On the Way
+      </Badge>
+    );
+  return (
+    <Badge className="bg-yellow-100 text-yellow-700 border-0 text-xs">
+      Pending
+    </Badge>
+  );
 }
 
 export default function CustomerOrders() {
@@ -40,7 +59,9 @@ export default function CustomerOrders() {
     enabled: !!actor && !isFetching && !!token && !!storeNumber,
   });
 
-  const sortedOrders = [...orders].sort((a, b) => Number(b.timestamp) - Number(a.timestamp));
+  const sortedOrders = [...orders].sort(
+    (a, b) => Number(b.timestamp) - Number(a.timestamp),
+  );
 
   return (
     <div className="space-y-5 pb-20 lg:pb-6">
@@ -51,8 +72,12 @@ export default function CustomerOrders() {
             <ShoppingBag className="w-5 h-5 text-green-600" />
           </div>
           <div>
-            <p className="font-heading font-semibold text-sm text-green-900">Order History</p>
-            <p className="text-xs text-green-600/70">{companyName} · Store #{storeNumber}</p>
+            <p className="font-heading font-semibold text-sm text-green-900">
+              Order History
+            </p>
+            <p className="text-xs text-green-600/70">
+              {companyName} · Store #{storeNumber}
+            </p>
           </div>
         </div>
       </div>
@@ -60,13 +85,19 @@ export default function CustomerOrders() {
       {/* Orders list */}
       {isLoading ? (
         <div className="space-y-3">
-          {[1, 2, 3].map((k) => <Skeleton key={k} className="h-32 w-full rounded-xl" />)}
+          {[1, 2, 3].map((k) => (
+            <Skeleton key={k} className="h-32 w-full rounded-xl" />
+          ))}
         </div>
       ) : sortedOrders.length === 0 ? (
         <div className="bg-white rounded-xl border border-green-100 p-12 text-center shadow-xs">
           <ShoppingBag className="w-12 h-12 mx-auto mb-3 text-green-200" />
-          <p className="font-heading font-medium text-green-700">No orders yet</p>
-          <p className="text-sm text-green-500 mt-1">Your order history will appear here</p>
+          <p className="font-heading font-medium text-green-700">
+            No orders yet
+          </p>
+          <p className="text-sm text-green-500 mt-1">
+            Your order history will appear here
+          </p>
           <Button
             className="mt-4 gap-2 bg-green-600 hover:bg-green-700"
             size="sm"
@@ -86,22 +117,34 @@ export default function CustomerOrders() {
               <div className="flex items-start justify-between mb-2">
                 <div className="flex flex-wrap gap-2 items-center">
                   {order.invoiceNumber ? (
-                    <Badge variant="outline" className="font-mono text-xs border-green-200 text-green-700">
+                    <Badge
+                      variant="outline"
+                      className="font-mono text-xs border-green-200 text-green-700"
+                    >
                       INV# {order.invoiceNumber}
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="font-mono text-xs border-green-200 text-green-700">
+                    <Badge
+                      variant="outline"
+                      className="font-mono text-xs border-green-200 text-green-700"
+                    >
                       PO# {order.poNumber}
                     </Badge>
                   )}
                   <StatusBadge status={order.status} />
                 </div>
-                <span className="text-xs text-green-600/60">{formatDate(order.timestamp)}</span>
+                <span className="text-xs text-green-600/60">
+                  {formatDate(order.timestamp)}
+                </span>
               </div>
 
               <div className="flex flex-wrap gap-1.5 mb-3">
                 {order.items.map((item) => (
-                  <Badge key={item.productId.toString()} variant="secondary" className="text-xs bg-green-50 text-green-700 border-green-100">
+                  <Badge
+                    key={item.productId.toString()}
+                    variant="secondary"
+                    className="text-xs bg-green-50 text-green-700 border-green-100"
+                  >
                     {item.productName} × {item.qty.toString()} {item.unit}
                   </Badge>
                 ))}
@@ -111,12 +154,18 @@ export default function CustomerOrders() {
                 <div className="flex items-center gap-4">
                   <div>
                     <p className="text-xs text-green-600/60">Total</p>
-                    <p className="font-bold text-sm text-green-700">₹{order.totalAmount.toFixed(2)}</p>
+                    <p className="font-bold text-sm text-green-700">
+                      ₹{order.totalAmount.toFixed(2)}
+                    </p>
                   </div>
                   <div>
                     <p className="text-xs text-green-600/60">Payment</p>
                     <p className="text-xs font-medium text-green-800">
-                      {order.paymentMethod === "cod" ? "Cash on Delivery" : order.paymentMethod === "pay_later" ? "Pay Later" : order.paymentMethod}
+                      {order.paymentMethod === "cod"
+                        ? "Cash on Delivery"
+                        : order.paymentMethod === "pay_later"
+                          ? "Pay Later"
+                          : order.paymentMethod}
                     </p>
                   </div>
                 </div>
@@ -133,7 +182,9 @@ export default function CustomerOrders() {
                   }}
                 >
                   <FileText className="w-3 h-3" />
-                  {order.status === "delivered" && order.invoiceNumber ? "Invoice PDF" : "PO PDF"}
+                  {order.status === "delivered" && order.invoiceNumber
+                    ? "Invoice PDF"
+                    : "PO PDF"}
                 </Button>
               </div>
             </div>

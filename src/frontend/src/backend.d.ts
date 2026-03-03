@@ -50,6 +50,7 @@ export interface Order {
     paymentMethod: string;
     storeNumber: string;
     gstNumber?: string;
+    deleteReason?: string;
     orderId: string;
     invoiceNumber?: string;
     totalAmount: number;
@@ -89,7 +90,9 @@ export interface backendInterface {
     createSubUser(token: string, email: string, role: UserRole): Promise<void>;
     createSubUserWithPassword(token: string, email: string, password: string, roleText: string): Promise<void>;
     customerLogin(storeNumber: string, password: string): Promise<string>;
+    deleteOrder(token: string, orderId: string, reason: string): Promise<void>;
     editOrderItems(token: string, orderId: string, newItems: Array<OrderItem>): Promise<void>;
+    editPayment(token: string, paymentId: string, storeNumber: string, companyName: string, amount: number, paymentMethod: string, chequeDetails: string | null, utrDetails: string | null): Promise<void>;
     getActiveProducts(): Promise<Array<Product>>;
     getAllCustomers(token: string): Promise<Array<Customer>>;
     getAllOrders(token: string): Promise<Array<Order>>;
@@ -107,6 +110,7 @@ export interface backendInterface {
     getMyStatement(token: string, _fromTime: bigint, _toTime: bigint): Promise<Array<StatementEntry>>;
     getOrdersByStore(token: string, storeNumber: string): Promise<Array<Order>>;
     getPaymentsByStore(token: string, storeNumber: string): Promise<Array<Payment>>;
+    getWebhookUrl(token: string): Promise<string>;
     placeOrder(token: string, storeNumber: string, companyName: string, address: string, items: Array<OrderItem>): Promise<string>;
     placeOrderV2(token: string, storeNumber: string, companyName: string, address: string, gstNumber: string | null, items: Array<OrderItem>, paymentMethod: string): Promise<string>;
     replaceCustomers(token: string, customerList: Array<Customer>): Promise<void>;
@@ -117,6 +121,7 @@ export interface backendInterface {
     subUserLoginV2(email: string, password: string): Promise<string>;
     toggleProduct(token: string, productId: bigint): Promise<void>;
     toggleSubUser(token: string, email: string): Promise<void>;
+    updateCustomer(token: string, storeNumber: string, updatedCustomer: Customer): Promise<void>;
     updateOrderStatus(token: string, orderId: string, status: string): Promise<void>;
     updateProductRate(token: string, productId: bigint, newRate: number): Promise<void>;
 }

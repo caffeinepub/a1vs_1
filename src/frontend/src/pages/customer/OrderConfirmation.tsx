@@ -1,8 +1,15 @@
-import { useNavigate } from "@tanstack/react-router";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Leaf, ShoppingCart, RotateCcw, Building2, MapPin } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import {
+  Building2,
+  CheckCircle2,
+  Leaf,
+  MapPin,
+  RotateCcw,
+  ShoppingCart,
+} from "lucide-react";
 
 interface StoredCartItem {
   productId: string;
@@ -33,7 +40,10 @@ export default function OrderConfirmation() {
   const totalQty = cartItems.reduce((sum, item) => sum + item.qty, 0);
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: "oklch(0.97 0.01 148)" }}>
+    <div
+      className="min-h-screen flex flex-col"
+      style={{ background: "oklch(0.97 0.01 148)" }}
+    >
       {/* Header */}
       <header className="border-b border-border bg-white/90 backdrop-blur-sm shadow-xs">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center gap-2.5">
@@ -50,7 +60,9 @@ export default function OrderConfirmation() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-success/15 mb-4">
             <CheckCircle2 className="w-9 h-9 text-success" />
           </div>
-          <h1 className="font-heading text-2xl font-bold text-success mb-1">Order Placed!</h1>
+          <h1 className="font-heading text-2xl font-bold text-success mb-1">
+            Order Placed!
+          </h1>
           <p className="text-sm text-muted-foreground">
             Your order has been received and will be processed shortly.
           </p>
@@ -59,7 +71,9 @@ export default function OrderConfirmation() {
         {/* Store Info */}
         <div className="bg-white rounded-xl border border-border p-4 space-y-2 shadow-xs">
           <div className="flex items-center gap-2 mb-1">
-            <Badge variant="secondary" className="font-mono">{storeNumber}</Badge>
+            <Badge variant="secondary" className="font-mono">
+              {storeNumber}
+            </Badge>
           </div>
           <div className="flex gap-4 flex-wrap">
             <div className="flex items-center gap-2 text-sm">
@@ -79,7 +93,9 @@ export default function OrderConfirmation() {
             <div className="flex items-center justify-between px-5 py-3 border-b border-border">
               <div className="flex items-center gap-2">
                 <ShoppingCart className="w-4 h-4 text-primary" />
-                <span className="font-heading font-semibold text-sm">Order Summary</span>
+                <span className="font-heading font-semibold text-sm">
+                  Order Summary
+                </span>
               </div>
               <Badge className="bg-primary/10 text-primary border-0">
                 {cartItems.length} products · {totalQty} units
@@ -100,11 +116,18 @@ export default function OrderConfirmation() {
                   <div
                     key={item.productId}
                     className={`grid grid-cols-[1fr_auto] items-center px-5 py-3 text-sm ${
-                      idx !== cartItems.length - 1 ? "border-b border-border/50" : ""
+                      idx !== cartItems.length - 1
+                        ? "border-b border-border/50"
+                        : ""
                     }`}
                   >
                     <span className="font-medium">{item.productName}</span>
-                    <Badge variant="secondary" className="font-mono font-semibold">{item.qty}</Badge>
+                    <Badge
+                      variant="secondary"
+                      className="font-mono font-semibold"
+                    >
+                      {item.qty}
+                    </Badge>
                   </div>
                 ))}
               </div>
@@ -124,7 +147,10 @@ export default function OrderConfirmation() {
 
       <footer className="text-center py-4 text-xs text-muted-foreground border-t border-border">
         © 2026. Built with ♥ using{" "}
-        <a href="https://caffeine.ai" className="underline hover:text-foreground transition-colors">
+        <a
+          href="https://caffeine.ai"
+          className="underline hover:text-foreground transition-colors"
+        >
           caffeine.ai
         </a>
       </footer>

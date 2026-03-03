@@ -1,15 +1,20 @@
-import { Outlet, useNavigate, Link, useRouterState } from "@tanstack/react-router";
-import {
-  LayoutDashboard,
-  ShoppingBag,
-  ClipboardList,
-  FileBarChart,
-  LogOut,
-  Menu,
-  X,
-} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import {
+  Link,
+  Outlet,
+  useNavigate,
+  useRouterState,
+} from "@tanstack/react-router";
+import {
+  ClipboardList,
+  FileBarChart,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  ShoppingBag,
+  X,
+} from "lucide-react";
 import { useState } from "react";
 
 const navItems = [
@@ -38,8 +43,9 @@ export default function CustomerLayout() {
   };
 
   const isActive = (to: string) => {
-    if (to === "/order") return currentPath === "/order" || currentPath.startsWith("/order/");
-    return currentPath === to || currentPath.startsWith(to + "/");
+    if (to === "/order")
+      return currentPath === "/order" || currentPath.startsWith("/order/");
+    return currentPath === to || currentPath.startsWith(`${to}/`);
   };
 
   const SidebarContent = () => (
@@ -50,21 +56,30 @@ export default function CustomerLayout() {
           <img
             src="/assets/uploads/A-One-Vegetables-LOGO-1.png"
             alt="A1VS Logo"
-            className="h-12 w-12 object-contain rounded-lg shrink-0"
+            className="h-12 w-12 object-contain shrink-0"
+            style={{ background: "none", mixBlendMode: "multiply" }}
             onError={(e) => {
               const target = e.currentTarget as HTMLImageElement;
               target.style.display = "none";
             }}
           />
           <div>
-            <div className="font-heading font-bold text-base text-green-900 leading-none">A1VS</div>
-            <div className="text-xs text-green-600 mt-0.5 leading-tight">AONE VEGETABLES</div>
-            <div className="text-xs text-green-600 leading-tight">& SUPPLIER</div>
+            <div className="font-heading font-bold text-base text-green-900 leading-none">
+              A1VS
+            </div>
+            <div className="text-xs text-green-600 mt-0.5 leading-tight">
+              AONE VEGETABLES
+            </div>
+            <div className="text-xs text-green-600 leading-tight">
+              & SUPPLIER
+            </div>
           </div>
         </div>
         {/* Store info */}
         <div className="mt-3 px-3 py-2 bg-green-50 rounded-lg">
-          <p className="text-xs font-semibold text-green-800 truncate">{companyName}</p>
+          <p className="text-xs font-semibold text-green-800 truncate">
+            {companyName}
+          </p>
           <p className="text-xs text-green-600">Store #{storeNumber}</p>
         </div>
       </div>
@@ -80,7 +95,7 @@ export default function CustomerLayout() {
               "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
               isActive(to)
                 ? "bg-green-600 text-white shadow-sm"
-                : "text-green-800/70 hover:bg-green-50 hover:text-green-900"
+                : "text-green-800/70 hover:bg-green-50 hover:text-green-900",
             )}
           >
             <Icon className="w-4 h-4 shrink-0" />
@@ -104,7 +119,10 @@ export default function CustomerLayout() {
   );
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: "oklch(0.97 0.01 148)" }}>
+    <div
+      className="flex h-screen overflow-hidden"
+      style={{ background: "oklch(0.97 0.01 148)" }}
+    >
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex flex-col w-64 shrink-0 bg-white border-r border-green-100 shadow-sm">
         <SidebarContent />
@@ -122,7 +140,9 @@ export default function CustomerLayout() {
           />
           <aside className="relative w-72 bg-white border-r border-green-100 flex flex-col z-10 shadow-xl">
             <div className="flex items-center justify-between px-4 py-3 border-b border-green-100">
-              <span className="font-heading font-bold text-green-900">Menu</span>
+              <span className="font-heading font-bold text-green-900">
+                Menu
+              </span>
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(false)}
@@ -152,9 +172,13 @@ export default function CustomerLayout() {
               src="/assets/uploads/A-One-Vegetables-LOGO-1.png"
               alt="A1VS"
               className="h-7 w-7 object-contain"
-              onError={(e) => (e.currentTarget as HTMLImageElement).style.display = "none"}
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+              }}
             />
-            <span className="font-heading font-bold text-green-900 text-sm">A1VS</span>
+            <span className="font-heading font-bold text-green-900 text-sm">
+              A1VS
+            </span>
           </div>
           <Button
             variant="ghost"
@@ -176,7 +200,10 @@ export default function CustomerLayout() {
         {/* Footer */}
         <footer className="text-center py-3 text-xs text-green-700/50 border-t border-green-100 bg-white shrink-0">
           © 2026. Built with ♥ using{" "}
-          <a href="https://caffeine.ai" className="underline hover:text-green-800 transition-colors">
+          <a
+            href="https://caffeine.ai"
+            className="underline hover:text-green-800 transition-colors"
+          >
             caffeine.ai
           </a>
         </footer>
@@ -192,11 +219,18 @@ export default function CustomerLayout() {
               "flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-xs font-medium transition-colors",
               isActive(to)
                 ? "text-green-700"
-                : "text-green-500/60 hover:text-green-700"
+                : "text-green-500/60 hover:text-green-700",
             )}
           >
-            <Icon className={cn("w-5 h-5", isActive(to) ? "text-green-700" : "text-green-400")} />
-            <span className="text-[10px] leading-none truncate">{label.split(" ")[0]}</span>
+            <Icon
+              className={cn(
+                "w-5 h-5",
+                isActive(to) ? "text-green-700" : "text-green-400",
+              )}
+            />
+            <span className="text-[10px] leading-none truncate">
+              {label.split(" ")[0]}
+            </span>
           </Link>
         ))}
       </nav>

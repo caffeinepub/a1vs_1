@@ -1,10 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
-import { useActor } from "../../hooks/useActor";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ShoppingCart, Users, Package, TrendingUp } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Package, ShoppingCart, TrendingUp, Users } from "lucide-react";
 import type { Order } from "../../backend.d";
+import { useActor } from "../../hooks/useActor";
 
 function formatDate(timestamp: bigint) {
   const ms = Number(timestamp) / 1_000_000;
@@ -19,9 +19,23 @@ function formatDate(timestamp: bigint) {
 
 function StatusBadge({ status }: { status: string }) {
   const s = status.toLowerCase();
-  if (s === "delivered") return <Badge className="bg-success/15 text-success border-0 font-medium">Delivered</Badge>;
-  if (s === "processing") return <Badge className="bg-info/15 text-info border-0 font-medium">Processing</Badge>;
-  return <Badge className="bg-warning-custom/15 text-warning-custom border-0 font-medium">Pending</Badge>;
+  if (s === "delivered")
+    return (
+      <Badge className="bg-success/15 text-success border-0 font-medium">
+        Delivered
+      </Badge>
+    );
+  if (s === "processing")
+    return (
+      <Badge className="bg-info/15 text-info border-0 font-medium">
+        Processing
+      </Badge>
+    );
+  return (
+    <Badge className="bg-warning-custom/15 text-warning-custom border-0 font-medium">
+      Pending
+    </Badge>
+  );
 }
 
 export default function Dashboard() {
@@ -92,7 +106,9 @@ export default function Dashboard() {
     <div className="space-y-6">
       <div>
         <h1 className="font-heading text-2xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground text-sm mt-1">Overview of your vegetable ordering platform</p>
+        <p className="text-muted-foreground text-sm mt-1">
+          Overview of your vegetable ordering platform
+        </p>
       </div>
 
       {/* Stats Cards */}
@@ -100,7 +116,9 @@ export default function Dashboard() {
         {statsCards.map(({ title, value, icon: Icon, desc, color }) => (
           <Card key={title} className="shadow-xs">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                {title}
+              </CardTitle>
               <Icon className={`w-4 h-4 ${color}`} />
             </CardHeader>
             <CardContent>
@@ -118,7 +136,9 @@ export default function Dashboard() {
       {/* Recent Orders */}
       <Card className="shadow-xs">
         <CardHeader>
-          <CardTitle className="font-heading text-base">Recent Orders</CardTitle>
+          <CardTitle className="font-heading text-base">
+            Recent Orders
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {ordersLoading ? (
@@ -137,25 +157,52 @@ export default function Dashboard() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Order ID</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Store</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Company</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Items</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Order ID
+                    </th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Store
+                    </th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Company
+                    </th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Items
+                    </th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Date
+                    </th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Status
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {recentOrders.map((order) => (
-                    <tr key={order.orderId} className="border-b border-border/50 hover:bg-muted/40 transition-colors">
-                      <td className="px-6 py-3 font-mono text-xs text-muted-foreground">{order.orderId.slice(0, 8)}…</td>
-                      <td className="px-4 py-3 font-medium">{order.storeNumber}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{order.companyName}</td>
-                      <td className="px-4 py-3">
-                        <Badge variant="secondary">{order.items.length} items</Badge>
+                    <tr
+                      key={order.orderId}
+                      className="border-b border-border/50 hover:bg-muted/40 transition-colors"
+                    >
+                      <td className="px-6 py-3 font-mono text-xs text-muted-foreground">
+                        {order.orderId.slice(0, 8)}…
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground text-xs">{formatDate(order.timestamp)}</td>
-                      <td className="px-4 py-3"><StatusBadge status={order.status} /></td>
+                      <td className="px-4 py-3 font-medium">
+                        {order.storeNumber}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {order.companyName}
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge variant="secondary">
+                          {order.items.length} items
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground text-xs">
+                        {formatDate(order.timestamp)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <StatusBadge status={order.status} />
+                      </td>
                     </tr>
                   ))}
                 </tbody>

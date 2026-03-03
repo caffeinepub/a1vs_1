@@ -3,7 +3,8 @@ import autoTable from "jspdf-autotable";
 import type { Order, StatementEntry } from "../backend.d";
 
 function formatDate(timestamp: bigint | number): string {
-  const ms = typeof timestamp === "bigint" ? Number(timestamp) / 1_000_000 : timestamp;
+  const ms =
+    typeof timestamp === "bigint" ? Number(timestamp) / 1_000_000 : timestamp;
   return new Date(ms).toLocaleDateString("en-IN", {
     day: "2-digit",
     month: "short",
@@ -17,7 +18,7 @@ function formatCurrency(amount: number): string {
 
 export function generateInvoicePDF(
   order: Order,
-  customerInfo?: { name?: string; gstNumber?: string }
+  _customerInfo?: { name?: string; gstNumber?: string },
 ): void {
   const doc = new jsPDF();
   const pageW = doc.internal.pageSize.getWidth();
@@ -40,16 +41,22 @@ export function generateInvoicePDF(
   const isInvoice = order.status === "delivered" && !!order.invoiceNumber;
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
-  doc.text(isInvoice ? "INVOICE" : "PURCHASE ORDER", pageW - 14, 16, { align: "right" });
+  doc.text(isInvoice ? "INVOICE" : "PURCHASE ORDER", pageW - 14, 16, {
+    align: "right",
+  });
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   if (isInvoice && order.invoiceNumber) {
-    doc.text(`Invoice #: ${order.invoiceNumber}`, pageW - 14, 24, { align: "right" });
+    doc.text(`Invoice #: ${order.invoiceNumber}`, pageW - 14, 24, {
+      align: "right",
+    });
   } else {
     doc.text(`PO #: ${order.poNumber}`, pageW - 14, 24, { align: "right" });
   }
-  doc.text(`Date: ${formatDate(order.timestamp)}`, pageW - 14, 32, { align: "right" });
+  doc.text(`Date: ${formatDate(order.timestamp)}`, pageW - 14, 32, {
+    align: "right",
+  });
 
   // Reset text color
   doc.setTextColor(0, 0, 0);
@@ -71,7 +78,11 @@ export function generateInvoicePDF(
   }
   doc.text(`Store #: ${order.storeNumber}`, 14, yPos);
   yPos += 5;
-  doc.text(`Payment: ${order.paymentMethod === "cod" ? "Cash on Delivery" : "Pay Later"}`, 14, yPos);
+  doc.text(
+    `Payment: ${order.paymentMethod === "cod" ? "Cash on Delivery" : "Pay Later"}`,
+    14,
+    yPos,
+  );
 
   // Items table
   yPos += 12;
@@ -88,7 +99,12 @@ export function generateInvoicePDF(
     startY: yPos,
     head: [["#", "Product", "Unit", "Qty", "Rate", "Amount"]],
     body: tableData,
-    headStyles: { fillColor: [34, 85, 45], textColor: 255, fontStyle: "bold", fontSize: 9 },
+    headStyles: {
+      fillColor: [34, 85, 45],
+      textColor: 255,
+      fontStyle: "bold",
+      fontSize: 9,
+    },
     bodyStyles: { fontSize: 9 },
     columnStyles: {
       0: { cellWidth: 10 },
@@ -102,21 +118,30 @@ export function generateInvoicePDF(
   });
 
   // Total
-  const finalY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+  const finalY =
+    (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable
+      .finalY + 8;
   doc.setFillColor(34, 85, 45);
   doc.rect(pageW - 80, finalY - 4, 66, 10, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   doc.text("TOTAL:", pageW - 66, finalY + 3);
-  doc.text(formatCurrency(order.totalAmount), pageW - 14, finalY + 3, { align: "right" });
+  doc.text(formatCurrency(order.totalAmount), pageW - 14, finalY + 3, {
+    align: "right",
+  });
   doc.setTextColor(0, 0, 0);
 
   // Footer
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(120, 120, 120);
-  doc.text("Thank you for your business! - AONE VEGETABLES & SUPPLIER", pageW / 2, finalY + 22, { align: "center" });
+  doc.text(
+    "Thank you for your business! - AONE VEGETABLES & SUPPLIER",
+    pageW / 2,
+    finalY + 22,
+    { align: "center" },
+  );
 
   const fileName = isInvoice
     ? `Invoice_${order.invoiceNumber}_${order.storeNumber}.pdf`
@@ -131,7 +156,7 @@ export function generateStatementPDF(
   companyName: string,
   period: string,
   closingBalance: number,
-  storeNumber?: string
+  storeNumber?: string,
 ): void {
   const doc = new jsPDF();
   const pageW = doc.internal.pageSize.getWidth();
@@ -172,7 +197,11 @@ export function generateStatementPDF(
     balance += entry.debit - entry.credit;
     const dateMs = Number(entry.entryDate) / 1_000_000;
     return [
-      new Date(dateMs).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
+      new Date(dateMs).toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }),
       entry.entryType,
       entry.referenceNumber,
       entry.debit > 0 ? formatCurrency(entry.debit) : "-",
@@ -183,9 +212,23 @@ export function generateStatementPDF(
 
   autoTable(doc, {
     startY: yPos + 18,
-    head: [["Date", "Type", "Reference", "Debit (Rs.)", "Credit (Rs.)", "Balance (Rs.)"]],
+    head: [
+      [
+        "Date",
+        "Type",
+        "Reference",
+        "Debit (Rs.)",
+        "Credit (Rs.)",
+        "Balance (Rs.)",
+      ],
+    ],
     body: tableData,
-    headStyles: { fillColor: [34, 85, 45], textColor: 255, fontStyle: "bold", fontSize: 8 },
+    headStyles: {
+      fillColor: [34, 85, 45],
+      textColor: 255,
+      fontStyle: "bold",
+      fontSize: 8,
+    },
     bodyStyles: { fontSize: 8 },
     columnStyles: {
       0: { cellWidth: 28 },
@@ -198,7 +241,9 @@ export function generateStatementPDF(
     alternateRowStyles: { fillColor: [245, 250, 245] },
   });
 
-  const finalY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+  const finalY =
+    (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable
+      .finalY + 8;
 
   // Closing balance box
   doc.setFillColor(34, 85, 45);
@@ -207,14 +252,23 @@ export function generateStatementPDF(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.text("CLOSING BALANCE:", pageW - 74, finalY + 3);
-  doc.text(formatCurrency(closingBalance), pageW - 14, finalY + 3, { align: "right" });
+  doc.text(formatCurrency(closingBalance), pageW - 14, finalY + 3, {
+    align: "right",
+  });
   doc.setTextColor(0, 0, 0);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
   doc.setTextColor(120, 120, 120);
-  doc.text("This is a computer-generated statement. - AONE VEGETABLES & SUPPLIER", pageW / 2, finalY + 22, { align: "center" });
+  doc.text(
+    "This is a computer-generated statement. - AONE VEGETABLES & SUPPLIER",
+    pageW / 2,
+    finalY + 22,
+    { align: "center" },
+  );
 
-  const safeCompany = (companyName || customerName).replace(/[^a-zA-Z0-9]/g, "_").slice(0, 20);
+  const safeCompany = (companyName || customerName)
+    .replace(/[^a-zA-Z0-9]/g, "_")
+    .slice(0, 20);
   doc.save(`Statement_${safeCompany}_${period.replace(/\s/g, "_")}.pdf`);
 }

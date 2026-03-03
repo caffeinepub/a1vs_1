@@ -1,25 +1,24 @@
-import { useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useActor } from "../../hooks/useActor";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  ShoppingBag,
-  ClipboardList,
-  FileBarChart,
-  Truck,
-  CheckCircle2,
-  Package,
-  Clock,
-  ArrowRight,
-  Banknote,
-  CreditCard,
-  TrendingUp,
-} from "lucide-react";
-import type { Order } from "../../backend.d";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import {
+  ArrowRight,
+  CheckCircle2,
+  ClipboardList,
+  Clock,
+  FileBarChart,
+  Package,
+  ShoppingBag,
+  TrendingUp,
+  Truck,
+  Wallet,
+} from "lucide-react";
+import type { Order, StatementEntry } from "../../backend.d";
+import { useActor } from "../../hooks/useActor";
 
 function formatDate(timestamp: bigint) {
   const ms = Number(timestamp) / 1_000_000;
@@ -62,27 +61,39 @@ function OrderTracker({ order }: { order: Order }) {
       <div className="flex items-start justify-between mb-3">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant="outline" className="font-mono text-xs border-green-200 text-green-700">
-              {order.invoiceNumber ? `INV# ${order.invoiceNumber}` : `PO# ${order.poNumber}`}
+            <Badge
+              variant="outline"
+              className="font-mono text-xs border-green-200 text-green-700"
+            >
+              {order.invoiceNumber
+                ? `INV# ${order.invoiceNumber}`
+                : `PO# ${order.poNumber}`}
             </Badge>
             <Badge
               className={cn(
                 "text-xs border-0",
-                order.status === "delivered" ? "bg-green-100 text-green-700" :
-                order.status === "on_the_way" ? "bg-orange-100 text-orange-700" :
-                order.status === "accepted" ? "bg-blue-100 text-blue-700" :
-                "bg-yellow-100 text-yellow-700"
+                order.status === "delivered"
+                  ? "bg-green-100 text-green-700"
+                  : order.status === "on_the_way"
+                    ? "bg-orange-100 text-orange-700"
+                    : order.status === "accepted"
+                      ? "bg-blue-100 text-blue-700"
+                      : "bg-yellow-100 text-yellow-700",
               )}
             >
-              {order.status === "on_the_way" ? "On the Way" :
-               order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+              {order.status === "on_the_way"
+                ? "On the Way"
+                : order.status.charAt(0).toUpperCase() + order.status.slice(1)}
             </Badge>
           </div>
           <p className="text-xs text-green-600/70 mt-1">
-            {formatDate(order.timestamp)} · {order.items.length} item{order.items.length !== 1 ? "s" : ""}
+            {formatDate(order.timestamp)} · {order.items.length} item
+            {order.items.length !== 1 ? "s" : ""}
           </p>
         </div>
-        <p className="font-bold text-green-700 text-sm">₹{order.totalAmount.toFixed(2)}</p>
+        <p className="font-bold text-green-700 text-sm">
+          ₹{order.totalAmount.toFixed(2)}
+        </p>
       </div>
 
       {/* Stepper */}
@@ -100,7 +111,7 @@ function OrderTracker({ order }: { order: Order }) {
                     "w-7 h-7 rounded-full flex items-center justify-center transition-all",
                     done
                       ? "bg-green-600 text-white shadow-sm"
-                      : "bg-green-50 text-green-300 border border-green-100"
+                      : "bg-green-50 text-green-300 border border-green-100",
                   )}
                 >
                   <StepIcon className="w-3.5 h-3.5" />
@@ -108,7 +119,7 @@ function OrderTracker({ order }: { order: Order }) {
                 <span
                   className={cn(
                     "text-[9px] mt-1 text-center leading-tight max-w-[48px] truncate",
-                    done ? "text-green-700 font-medium" : "text-green-400"
+                    done ? "text-green-700 font-medium" : "text-green-400",
                   )}
                 >
                   {step.label}
@@ -118,7 +129,7 @@ function OrderTracker({ order }: { order: Order }) {
                 <div
                   className={cn(
                     "flex-1 h-0.5 mx-1 rounded-full transition-all",
-                    idx < currentStep ? "bg-green-500" : "bg-green-100"
+                    idx < currentStep ? "bg-green-500" : "bg-green-100",
                   )}
                 />
               )}
@@ -144,26 +155,42 @@ export default function CustomerDashboard() {
     enabled: !!actor && !isFetching && !!token && !!storeNumber,
   });
 
-  const sortedOrders = [...orders].sort((a, b) => Number(b.timestamp) - Number(a.timestamp));
+  const { data: statementEntries = [], isLoading: isStatementLoading } =
+    useQuery<StatementEntry[]>({
+      queryKey: ["my-statement", storeNumber, token],
+      queryFn: () =>
+        actor!.getMyStatement(token, 0n, BigInt(Date.now()) * 1_000_000n),
+      enabled: !!actor && !isFetching && !!token && !!storeNumber,
+    });
+
+  const sortedOrders = [...orders].sort(
+    (a, b) => Number(b.timestamp) - Number(a.timestamp),
+  );
   const recentOrders = sortedOrders.slice(0, 5);
 
-  const codOrders = orders.filter((o) => o.paymentMethod === "cod");
-  const payLaterOrders = orders.filter((o) => o.paymentMethod === "pay_later");
-  const codTotal = codOrders.reduce((sum, o) => sum + o.totalAmount, 0);
-  const payLaterTotal = payLaterOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+  const totalDebit = statementEntries.reduce((sum, e) => sum + e.debit, 0);
+  const totalCredit = statementEntries.reduce((sum, e) => sum + e.credit, 0);
+  const closingBalance = totalDebit - totalCredit;
 
   return (
     <div className="space-y-5 pb-20 lg:pb-6">
       {/* Welcome header */}
       <div
         className="rounded-2xl p-5 relative overflow-hidden"
-        style={{ background: "linear-gradient(135deg, oklch(0.35 0.12 148) 0%, oklch(0.50 0.14 148) 100%)" }}
+        style={{
+          background:
+            "linear-gradient(135deg, oklch(0.35 0.12 148) 0%, oklch(0.50 0.14 148) 100%)",
+        }}
       >
         <div className="relative z-10">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-green-200 text-xs font-medium mb-0.5">Welcome back</p>
-              <h1 className="font-heading font-bold text-white text-xl leading-tight">{companyName}</h1>
+              <p className="text-green-200 text-xs font-medium mb-0.5">
+                Welcome back
+              </p>
+              <h1 className="font-heading font-bold text-white text-xl leading-tight">
+                {companyName}
+              </h1>
               <div className="flex items-center gap-2 mt-2">
                 <Badge className="bg-white/20 text-white border-0 text-xs font-mono backdrop-blur-sm">
                   Store #{storeNumber}
@@ -183,22 +210,26 @@ export default function CustomerDashboard() {
         <div className="absolute -top-4 -left-4 w-20 h-20 rounded-full bg-white/5" />
       </div>
 
-      {/* Order summary cards */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Account summary cards */}
+      <div className="grid grid-cols-3 gap-3">
         <Card className="bg-white border-green-100 shadow-xs">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center">
-                <Banknote className="w-4 h-4 text-orange-500" />
+              <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center">
+                <ShoppingBag className="w-4 h-4 text-green-600" />
               </div>
-              <span className="text-xs font-medium text-green-800">Cash on Delivery</span>
+              <span className="text-xs font-medium text-green-800">
+                Total Orders
+              </span>
             </div>
             {isLoading ? (
               <Skeleton className="h-8 w-16" />
             ) : (
               <>
-                <p className="font-heading font-bold text-xl text-green-900">{codOrders.length}</p>
-                <p className="text-xs text-green-600 mt-0.5">₹{codTotal.toFixed(2)} total</p>
+                <p className="font-heading font-bold text-xl text-green-900">
+                  {orders.length}
+                </p>
+                <p className="text-xs text-green-600 mt-0.5">orders placed</p>
               </>
             )}
           </CardContent>
@@ -207,16 +238,59 @@ export default function CustomerDashboard() {
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-                <CreditCard className="w-4 h-4 text-blue-500" />
+                <TrendingUp className="w-4 h-4 text-blue-600" />
               </div>
-              <span className="text-xs font-medium text-green-800">Pay Later</span>
+              <span className="text-xs font-medium text-green-800">
+                Total Purchase
+              </span>
             </div>
-            {isLoading ? (
+            {isStatementLoading ? (
               <Skeleton className="h-8 w-16" />
             ) : (
               <>
-                <p className="font-heading font-bold text-xl text-green-900">{payLaterOrders.length}</p>
-                <p className="text-xs text-green-600 mt-0.5">₹{payLaterTotal.toFixed(2)} pending</p>
+                <p className="font-heading font-bold text-lg text-green-900">
+                  ₹{totalDebit.toFixed(2)}
+                </p>
+                <p className="text-xs text-green-600 mt-0.5">total billed</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+        <Card className="bg-white border-green-100 shadow-xs">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div
+                className={cn(
+                  "w-8 h-8 rounded-lg flex items-center justify-center",
+                  closingBalance > 0 ? "bg-red-50" : "bg-emerald-50",
+                )}
+              >
+                <Wallet
+                  className={cn(
+                    "w-4 h-4",
+                    closingBalance > 0 ? "text-red-500" : "text-emerald-600",
+                  )}
+                />
+              </div>
+              <span className="text-xs font-medium text-green-800">
+                Closing Balance
+              </span>
+            </div>
+            {isStatementLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <>
+                <p
+                  className={cn(
+                    "font-heading font-bold text-lg",
+                    closingBalance > 0 ? "text-red-600" : "text-emerald-600",
+                  )}
+                >
+                  ₹{closingBalance.toFixed(2)}
+                </p>
+                <p className="text-xs text-green-600 mt-0.5">
+                  {closingBalance > 0 ? "amount due" : "fully paid"}
+                </p>
               </>
             )}
           </CardContent>
@@ -253,7 +327,9 @@ export default function CustomerDashboard() {
       {/* Recent orders with tracking */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-heading font-semibold text-green-900 text-sm">Recent Orders</h2>
+          <h2 className="font-heading font-semibold text-green-900 text-sm">
+            Recent Orders
+          </h2>
           <Button
             variant="ghost"
             size="sm"
@@ -266,13 +342,19 @@ export default function CustomerDashboard() {
 
         {isLoading ? (
           <div className="space-y-3">
-            {[1, 2, 3].map((k) => <Skeleton key={k} className="h-28 w-full rounded-xl" />)}
+            {[1, 2, 3].map((k) => (
+              <Skeleton key={k} className="h-28 w-full rounded-xl" />
+            ))}
           </div>
         ) : recentOrders.length === 0 ? (
           <div className="bg-white rounded-xl border border-green-100 p-10 text-center shadow-xs">
             <ShoppingBag className="w-12 h-12 mx-auto mb-3 text-green-200" />
-            <p className="font-heading font-medium text-green-700 text-sm">No orders yet</p>
-            <p className="text-xs text-green-500 mt-1">Place your first order to get started</p>
+            <p className="font-heading font-medium text-green-700 text-sm">
+              No orders yet
+            </p>
+            <p className="text-xs text-green-500 mt-1">
+              Place your first order to get started
+            </p>
             <Button
               className="mt-4 gap-2 bg-green-600 hover:bg-green-700"
               size="sm"

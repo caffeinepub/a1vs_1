@@ -1,13 +1,19 @@
-import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { useActor } from "../../hooks/useActor";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { useMutation } from "@tanstack/react-query";
+import { Loader2, Lock, ShieldCheck, UserCircle } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
-import { UserCircle, Lock, ShieldCheck, Loader2 } from "lucide-react";
+import { useActor } from "../../hooks/useActor";
 
 export default function AdminProfile() {
   const { actor } = useActor();
@@ -25,7 +31,8 @@ export default function AdminProfile() {
       setConfirmPassword("");
     },
     onError: (err: unknown) => {
-      const msg = err instanceof Error ? err.message : "Failed to change password";
+      const msg =
+        err instanceof Error ? err.message : "Failed to change password";
       toast.error(msg);
     },
   });
@@ -55,7 +62,9 @@ export default function AdminProfile() {
     <div className="space-y-6">
       <div>
         <h1 className="font-heading text-2xl font-bold">Profile</h1>
-        <p className="text-muted-foreground text-sm mt-1">Manage your admin account settings</p>
+        <p className="text-muted-foreground text-sm mt-1">
+          Manage your admin account settings
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -74,7 +83,9 @@ export default function AdminProfile() {
               </div>
               <div>
                 <p className="font-heading font-bold text-base">Master Admin</p>
-                <p className="text-sm text-muted-foreground">form2.subway@gmail.com</p>
+                <p className="text-sm text-muted-foreground">
+                  form2.subway@gmail.com
+                </p>
               </div>
             </div>
 
@@ -101,7 +112,9 @@ export default function AdminProfile() {
                   <p className="text-xs text-muted-foreground">Portal</p>
                   <p className="font-medium text-sm">A1VS Admin Portal</p>
                 </div>
-                <Badge variant="secondary" className="text-xs">AONE VEGETABLES & SUPPLIER</Badge>
+                <Badge variant="secondary" className="text-xs">
+                  AONE VEGETABLES & SUPPLIER
+                </Badge>
               </div>
             </div>
           </CardContent>
@@ -115,7 +128,8 @@ export default function AdminProfile() {
               Change Password
             </CardTitle>
             <CardDescription>
-              Update your admin account password. Choose a strong password of at least 6 characters.
+              Update your admin account password. Choose a strong password of at
+              least 6 characters.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -142,11 +156,15 @@ export default function AdminProfile() {
                   disabled={passwordMutation.isPending}
                 />
                 {confirmPassword && newPassword !== confirmPassword && (
-                  <p className="text-xs text-destructive">Passwords do not match</p>
+                  <p className="text-xs text-destructive">
+                    Passwords do not match
+                  </p>
                 )}
-                {confirmPassword && newPassword === confirmPassword && confirmPassword.length >= 6 && (
-                  <p className="text-xs text-success">Passwords match</p>
-                )}
+                {confirmPassword &&
+                  newPassword === confirmPassword &&
+                  confirmPassword.length >= 6 && (
+                    <p className="text-xs text-success">Passwords match</p>
+                  )}
               </div>
               <Button
                 type="submit"

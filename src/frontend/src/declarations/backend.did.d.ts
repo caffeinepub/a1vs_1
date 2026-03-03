@@ -25,6 +25,7 @@ export interface Order {
   'paymentMethod' : string,
   'storeNumber' : string,
   'gstNumber' : [] | [string],
+  'deleteReason' : [] | [string],
   'orderId' : string,
   'invoiceNumber' : [] | [string],
   'totalAmount' : number,
@@ -96,7 +97,21 @@ export interface _SERVICE {
     undefined
   >,
   'customerLogin' : ActorMethod<[string, string], string>,
+  'deleteOrder' : ActorMethod<[string, string, string], undefined>,
   'editOrderItems' : ActorMethod<[string, string, Array<OrderItem>], undefined>,
+  'editPayment' : ActorMethod<
+    [
+      string,
+      string,
+      string,
+      string,
+      number,
+      string,
+      [] | [string],
+      [] | [string],
+    ],
+    undefined
+  >,
   'getActiveProducts' : ActorMethod<[], Array<Product>>,
   'getAllCustomers' : ActorMethod<[string], Array<Customer>>,
   'getAllOrders' : ActorMethod<[string], Array<Order>>,
@@ -128,6 +143,7 @@ export interface _SERVICE {
   >,
   'getOrdersByStore' : ActorMethod<[string, string], Array<Order>>,
   'getPaymentsByStore' : ActorMethod<[string, string], Array<Payment>>,
+  'getWebhookUrl' : ActorMethod<[string], string>,
   'placeOrder' : ActorMethod<
     [string, string, string, string, Array<OrderItem>],
     string
@@ -147,6 +163,7 @@ export interface _SERVICE {
   'subUserLoginV2' : ActorMethod<[string, string], string>,
   'toggleProduct' : ActorMethod<[string, bigint], undefined>,
   'toggleSubUser' : ActorMethod<[string, string], undefined>,
+  'updateCustomer' : ActorMethod<[string, string, Customer], undefined>,
   'updateOrderStatus' : ActorMethod<[string, string, string], undefined>,
   'updateProductRate' : ActorMethod<[string, bigint, number], undefined>,
 }
