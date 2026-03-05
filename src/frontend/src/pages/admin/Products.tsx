@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  Camera,
   Check,
   Download,
   FileSpreadsheet,
@@ -146,6 +147,9 @@ export default function Products() {
   const [isLoadingDefaults, setIsLoadingDefaults] = useState(false);
   const [editingRateId, setEditingRateId] = useState<string | null>(null);
   const [editingRateValue, setEditingRateValue] = useState<string>("");
+  // Per-product image upload state
+  const [uploadingImageId, setUploadingImageId] = useState<string | null>(null);
+  const imageFileRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const { data: products = [], isLoading } = useQuery<Product[]>({
     queryKey: ["admin-products", token],
@@ -287,6 +291,35 @@ export default function Products() {
     setEditingRateValue("");
   };
 
+  const handleProductImageChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    product: Product,
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file || !actor) return;
+    const productIdStr = product.id.toString();
+    setUploadingImageId(productIdStr);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      await actor.updateProductImage(token, product.id, base64);
+      qc.invalidateQueries({ queryKey: ["admin-products"] });
+      qc.invalidateQueries({ queryKey: ["active-products"] });
+      toast.success(`Image updated for ${product.name}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to upload image";
+      toast.error(msg);
+    } finally {
+      setUploadingImageId(null);
+      const ref = imageFileRefs.current[productIdStr];
+      if (ref) ref.value = "";
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -405,12 +438,17 @@ export default function Products() {
                     <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       Toggle
                     </th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Image
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {products.map((product, idx) => {
                     const isEditingRate =
                       editingRateId === product.id.toString();
+                    const productIdStr = product.id.toString();
+                    const isUploadingImage = uploadingImageId === productIdStr;
                     return (
                       <tr
                         key={product.id.toString()}
@@ -495,6 +533,55 @@ export default function Products() {
                             }
                             disabled={toggleMutation.isPending}
                           />
+                        </td>
+                        <td className="px-4 py-3">
+                          {/* Hidden file input per product */}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            ref={(el) => {
+                              imageFileRefs.current[productIdStr] = el;
+                            }}
+                            onChange={(e) =>
+                              handleProductImageChange(e, product)
+                            }
+                          />
+                          {isUploadingImage ? (
+                            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                          ) : product.imageBase64 ? (
+                            <div className="flex items-center gap-1.5">
+                              <img
+                                src={product.imageBase64}
+                                alt={product.name}
+                                className="w-9 h-9 rounded object-cover border border-border"
+                              />
+                              <button
+                                type="button"
+                                title="Replace image"
+                                className="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
+                                onClick={() =>
+                                  imageFileRefs.current[productIdStr]?.click()
+                                }
+                                data-ocid="product.image.edit_button"
+                              >
+                                <Camera className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 gap-1 text-xs text-muted-foreground hover:text-primary px-2"
+                              onClick={() =>
+                                imageFileRefs.current[productIdStr]?.click()
+                              }
+                              data-ocid="product.image.upload_button"
+                            >
+                              <Camera className="w-3.5 h-3.5" />
+                              Upload
+                            </Button>
+                          )}
                         </td>
                       </tr>
                     );

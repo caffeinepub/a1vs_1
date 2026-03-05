@@ -390,12 +390,14 @@ function ActiveOrderCard({
   index,
   onMarkOnTheWay,
   isUpdating,
+  onAcknowledge,
 }: {
   order: Order;
   assignment: RiderAssignment | null;
   index: number;
   onMarkOnTheWay: (orderId: string) => void;
   isUpdating: boolean;
+  onAcknowledge: (orderId: string) => void;
 }) {
   const [showSignature, setShowSignature] = useState(false);
   const { actor } = useActor();
@@ -404,6 +406,7 @@ function ActiveOrderCard({
 
   const deliverMutation = useMutation({
     mutationFn: async (signatureData: string) => {
+      onAcknowledge(order.orderId);
       return actor!.markOrderDeliveredWithSignature(
         token,
         order.orderId,
@@ -589,7 +592,9 @@ export default function RiderDashboard() {
   const riderEmail = localStorage.getItem("a1vs_rider_email") ?? "";
   const qc = useQueryClient();
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const prevOrderCountRef = useRef<number | null>(null);
+  const prevOrderIdsRef = useRef<Set<string>>(new Set());
+  const [newOrderIds, setNewOrderIds] = useState<Set<string>>(new Set());
+  const ringIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Fetch orders assigned to this rider directly from the backend
   const { data: myOrders = [], isLoading } = useQuery<Order[]>({
@@ -631,30 +636,90 @@ export default function RiderDashboard() {
   // Request notification permission eagerly on mount
   useEffect(() => {
     requestNotificationPermission();
+    return () => {
+      // Clean up interval on unmount
+      if (ringIntervalRef.current) {
+        clearInterval(ringIntervalRef.current);
+        ringIntervalRef.current = null;
+      }
+    };
   }, []);
 
-  // Detect new orders and fire notification + sound
+  // Detect new orders: track by ID set, start looping ring until ack'd
   useEffect(() => {
-    if (prevOrderCountRef.current === null) {
-      prevOrderCountRef.current = activeOrders.length;
+    if (myOrders.length === 0) return;
+    // Build set of currently active order IDs from myOrders directly
+    const currentIds = new Set(
+      myOrders
+        .filter((o) => o.status === "accepted" || o.status === "on_the_way")
+        .map((o) => o.orderId),
+    );
+
+    if (prevOrderIdsRef.current.size === 0) {
+      // First load — just record them, don't ring
+      prevOrderIdsRef.current = currentIds;
       return;
     }
-    if (activeOrders.length > prevOrderCountRef.current) {
-      // Re-request permission in case user didn't grant it at mount
+
+    const brandNew: string[] = [];
+    for (const id of currentIds) {
+      if (!prevOrderIdsRef.current.has(id)) {
+        brandNew.push(id);
+      }
+    }
+
+    if (brandNew.length > 0) {
       if ("Notification" in window && Notification.permission === "default") {
         requestNotificationPermission();
       }
       playPhoneRing();
       showBrowserNotification(
         "New Delivery Order!",
-        "A new order has been assigned to you. Open app to view.",
+        `${brandNew.length} new order${brandNew.length > 1 ? "s" : ""} assigned to you.`,
       );
-      toast.info("🚨 New order assigned to you!", {
-        duration: 6000,
+      toast.info(
+        `🚨 ${brandNew.length} new order${brandNew.length > 1 ? "s" : ""} assigned to you!`,
+        {
+          duration: 6000,
+        },
+      );
+
+      setNewOrderIds((prev) => {
+        const next = new Set(prev);
+        for (const id of brandNew) next.add(id);
+        return next;
       });
     }
-    prevOrderCountRef.current = activeOrders.length;
-  }, [activeOrders.length]);
+
+    prevOrderIdsRef.current = currentIds;
+  }, [myOrders]);
+
+  // Start/stop looping ring based on newOrderIds
+  useEffect(() => {
+    if (newOrderIds.size > 0) {
+      if (!ringIntervalRef.current) {
+        ringIntervalRef.current = setInterval(() => {
+          playPhoneRing();
+        }, 3000);
+      }
+    } else {
+      if (ringIntervalRef.current) {
+        clearInterval(ringIntervalRef.current);
+        ringIntervalRef.current = null;
+      }
+    }
+    return () => {
+      // No cleanup here — managed by the condition above
+    };
+  }, [newOrderIds.size]);
+
+  const acknowledgeOrder = (orderId: string) => {
+    setNewOrderIds((prev) => {
+      const next = new Set(prev);
+      next.delete(orderId);
+      return next;
+    });
+  };
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({
@@ -665,6 +730,7 @@ export default function RiderDashboard() {
       status: string;
     }) => {
       setUpdatingId(orderId);
+      acknowledgeOrder(orderId);
       return actor!.updateOrderStatusRider(token, orderId, status);
     },
     onSuccess: () => {
@@ -695,6 +761,32 @@ export default function RiderDashboard() {
 
   return (
     <div className="space-y-4 pb-6">
+      {/* New order pulsing alert banner */}
+      {newOrderIds.size > 0 && (
+        <div
+          className="rounded-xl bg-red-500 text-white px-4 py-3 flex items-center gap-3 animate-pulse shadow-lg"
+          data-ocid="rider.new_order.toast"
+        >
+          <span className="text-lg">🔔</span>
+          <div className="flex-1">
+            <p className="font-semibold text-sm">
+              New order assigned! Tap below to view.
+            </p>
+            <p className="text-xs text-red-100 mt-0.5">
+              {newOrderIds.size} unacknowledged order
+              {newOrderIds.size > 1 ? "s" : ""}
+            </p>
+          </div>
+          <button
+            type="button"
+            className="text-xs underline text-red-100 hover:text-white shrink-0"
+            onClick={() => setNewOrderIds(new Set())}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Stats banner */}
       <div
         className="rounded-2xl p-4 relative overflow-hidden"
@@ -812,6 +904,7 @@ export default function RiderDashboard() {
                   index={idx + 1}
                   onMarkOnTheWay={handleMarkOnTheWay}
                   isUpdating={updatingId === order.orderId}
+                  onAcknowledge={acknowledgeOrder}
                 />
               ))}
             </div>

@@ -99,6 +99,7 @@ export interface ProductInput {
     name: string;
     rate: number;
     unit: string;
+    imageBase64?: string;
 }
 export interface CompanyProfile {
     logoBase64: string;
@@ -138,6 +139,7 @@ export interface SubUser {
 export interface Payment {
     deleted: boolean;
     paymentMethod: string;
+    paymentAdviceImage: string;
     storeNumber: string;
     deleteReason?: string;
     utrDetails?: string;
@@ -169,6 +171,7 @@ export interface Product {
     name: string;
     rate: number;
     unit: string;
+    imageBase64: string;
 }
 export interface Customer {
     storeNumber: string;
@@ -187,7 +190,7 @@ export enum UserRole {
 }
 export interface backendInterface {
     addCustomer(token: string, customer: Customer): Promise<void>;
-    addPayment(token: string, storeNumber: string, companyName: string, amount: number, paymentMethod: string, chequeDetails: string | null, utrDetails: string | null): Promise<void>;
+    addPayment(token: string, storeNumber: string, companyName: string, amount: number, paymentMethod: string, chequeDetails: string | null, utrDetails: string | null, paymentAdviceImage: string): Promise<void>;
     adminLogin(email: string, password: string): Promise<string>;
     assignRider(token: string, orderId: string, riderEmail: string, riderName: string, riderPhone: string): Promise<void>;
     changeAdminPassword(token: string, newPassword: string): Promise<void>;
@@ -199,7 +202,7 @@ export interface backendInterface {
     deleteOrder(token: string, orderId: string, reason: string): Promise<void>;
     deletePayment(token: string, paymentId: string, reason: string): Promise<void>;
     editOrderItems(token: string, orderId: string, newItems: Array<OrderItem>): Promise<void>;
-    editPayment(token: string, paymentId: string, storeNumber: string, companyName: string, amount: number, paymentMethod: string, chequeDetails: string | null, utrDetails: string | null): Promise<void>;
+    editPayment(token: string, paymentId: string, storeNumber: string, companyName: string, amount: number, paymentMethod: string, chequeDetails: string | null, utrDetails: string | null, paymentAdviceImage: string): Promise<void>;
     getActiveProducts(): Promise<Array<Product>>;
     getAdminRole(token: string): Promise<string>;
     getAdminStatus(_token: string): Promise<boolean>;
@@ -244,9 +247,10 @@ export interface backendInterface {
     updateCustomer(token: string, storeNumber: string, updatedCustomer: Customer): Promise<void>;
     updateOrderStatus(token: string, orderId: string, status: string): Promise<void>;
     updateOrderStatusRider(token: string, orderId: string, status: string): Promise<void>;
+    updateProductImage(token: string, productId: bigint, imageBase64: string): Promise<void>;
     updateProductRate(token: string, productId: bigint, newRate: number): Promise<void>;
 }
-import type { Customer as _Customer, Order as _Order, OrderItem as _OrderItem, Payment as _Payment, RiderAssignment as _RiderAssignment, RiderProfile as _RiderProfile, Time as _Time, UserRole as _UserRole } from "./declarations/backend.did.d.ts";
+import type { Customer as _Customer, Order as _Order, OrderItem as _OrderItem, Payment as _Payment, ProductInput as _ProductInput, RiderAssignment as _RiderAssignment, RiderProfile as _RiderProfile, Time as _Time, UserRole as _UserRole } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
     async addCustomer(arg0: string, arg1: Customer): Promise<void> {
@@ -263,17 +267,17 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async addPayment(arg0: string, arg1: string, arg2: string, arg3: number, arg4: string, arg5: string | null, arg6: string | null): Promise<void> {
+    async addPayment(arg0: string, arg1: string, arg2: string, arg3: number, arg4: string, arg5: string | null, arg6: string | null, arg7: string): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.addPayment(arg0, arg1, arg2, arg3, arg4, to_candid_opt_n3(this._uploadFile, this._downloadFile, arg5), to_candid_opt_n3(this._uploadFile, this._downloadFile, arg6));
+                const result = await this.actor.addPayment(arg0, arg1, arg2, arg3, arg4, to_candid_opt_n3(this._uploadFile, this._downloadFile, arg5), to_candid_opt_n3(this._uploadFile, this._downloadFile, arg6), arg7);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.addPayment(arg0, arg1, arg2, arg3, arg4, to_candid_opt_n3(this._uploadFile, this._downloadFile, arg5), to_candid_opt_n3(this._uploadFile, this._downloadFile, arg6));
+            const result = await this.actor.addPayment(arg0, arg1, arg2, arg3, arg4, to_candid_opt_n3(this._uploadFile, this._downloadFile, arg5), to_candid_opt_n3(this._uploadFile, this._downloadFile, arg6), arg7);
             return result;
         }
     }
@@ -431,17 +435,17 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async editPayment(arg0: string, arg1: string, arg2: string, arg3: string, arg4: number, arg5: string, arg6: string | null, arg7: string | null): Promise<void> {
+    async editPayment(arg0: string, arg1: string, arg2: string, arg3: string, arg4: number, arg5: string, arg6: string | null, arg7: string | null, arg8: string): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.editPayment(arg0, arg1, arg2, arg3, arg4, arg5, to_candid_opt_n3(this._uploadFile, this._downloadFile, arg6), to_candid_opt_n3(this._uploadFile, this._downloadFile, arg7));
+                const result = await this.actor.editPayment(arg0, arg1, arg2, arg3, arg4, arg5, to_candid_opt_n3(this._uploadFile, this._downloadFile, arg6), to_candid_opt_n3(this._uploadFile, this._downloadFile, arg7), arg8);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.editPayment(arg0, arg1, arg2, arg3, arg4, arg5, to_candid_opt_n3(this._uploadFile, this._downloadFile, arg6), to_candid_opt_n3(this._uploadFile, this._downloadFile, arg7));
+            const result = await this.actor.editPayment(arg0, arg1, arg2, arg3, arg4, arg5, to_candid_opt_n3(this._uploadFile, this._downloadFile, arg6), to_candid_opt_n3(this._uploadFile, this._downloadFile, arg7), arg8);
             return result;
         }
     }
@@ -845,14 +849,14 @@ export class Backend implements backendInterface {
     async replaceProductsWithDetails(arg0: string, arg1: Array<ProductInput>): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.replaceProductsWithDetails(arg0, arg1);
+                const result = await this.actor.replaceProductsWithDetails(arg0, to_candid_vec_n21(this._uploadFile, this._downloadFile, arg1));
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.replaceProductsWithDetails(arg0, arg1);
+            const result = await this.actor.replaceProductsWithDetails(arg0, to_candid_vec_n21(this._uploadFile, this._downloadFile, arg1));
             return result;
         }
     }
@@ -996,6 +1000,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async updateProductImage(arg0: string, arg1: bigint, arg2: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateProductImage(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateProductImage(arg0, arg1, arg2);
+            return result;
+        }
+    }
     async updateProductRate(arg0: string, arg1: bigint, arg2: number): Promise<void> {
         if (this.processError) {
             try {
@@ -1045,6 +1063,7 @@ function from_candid_opt_n9(_uploadFile: (file: ExternalBlob) => Promise<Uint8Ar
 function from_candid_record_n12(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     deleted: boolean;
     paymentMethod: string;
+    paymentAdviceImage: string;
     storeNumber: string;
     deleteReason: [] | [string];
     utrDetails: [] | [string];
@@ -1056,6 +1075,7 @@ function from_candid_record_n12(_uploadFile: (file: ExternalBlob) => Promise<Uin
 }): {
     deleted: boolean;
     paymentMethod: string;
+    paymentAdviceImage: string;
     storeNumber: string;
     deleteReason?: string;
     utrDetails?: string;
@@ -1068,6 +1088,7 @@ function from_candid_record_n12(_uploadFile: (file: ExternalBlob) => Promise<Uin
     return {
         deleted: value.deleted,
         paymentMethod: value.paymentMethod,
+        paymentAdviceImage: value.paymentAdviceImage,
         storeNumber: value.storeNumber,
         deleteReason: record_opt_to_undefined(from_candid_opt_n9(_uploadFile, _downloadFile, value.deleteReason)),
         utrDetails: record_opt_to_undefined(from_candid_opt_n9(_uploadFile, _downloadFile, value.utrDetails)),
@@ -1186,6 +1207,9 @@ function from_candid_vec_n6(_uploadFile: (file: ExternalBlob) => Promise<Uint8Ar
 function to_candid_Customer_n1(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Customer): _Customer {
     return to_candid_record_n2(_uploadFile, _downloadFile, value);
 }
+function to_candid_ProductInput_n22(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: ProductInput): _ProductInput {
+    return to_candid_record_n23(_uploadFile, _downloadFile, value);
+}
 function to_candid_UserRole_n4(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: UserRole): _UserRole {
     return to_candid_variant_n5(_uploadFile, _downloadFile, value);
 }
@@ -1222,6 +1246,24 @@ function to_candid_record_n2(_uploadFile: (file: ExternalBlob) => Promise<Uint8A
         phone: value.phone
     };
 }
+function to_candid_record_n23(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    name: string;
+    rate: number;
+    unit: string;
+    imageBase64?: string;
+}): {
+    name: string;
+    rate: number;
+    unit: string;
+    imageBase64: [] | [string];
+} {
+    return {
+        name: value.name,
+        rate: value.rate,
+        unit: value.unit,
+        imageBase64: value.imageBase64 ? candid_some(value.imageBase64) : candid_none()
+    };
+}
 function to_candid_variant_n5(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: UserRole): {
     manager: null;
 } | {
@@ -1239,6 +1281,9 @@ function to_candid_variant_n5(_uploadFile: (file: ExternalBlob) => Promise<Uint8
 }
 function to_candid_vec_n20(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<Customer>): Array<_Customer> {
     return value.map((x)=>to_candid_Customer_n1(_uploadFile, _downloadFile, x));
+}
+function to_candid_vec_n21(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<ProductInput>): Array<_ProductInput> {
+    return value.map((x)=>to_candid_ProductInput_n22(_uploadFile, _downloadFile, x));
 }
 export interface CreateActorOptions {
     agent?: Agent;

@@ -53,6 +53,7 @@ export interface OrderItem {
 export interface Payment {
   'deleted' : boolean,
   'paymentMethod' : string,
+  'paymentAdviceImage' : string,
   'storeNumber' : string,
   'deleteReason' : [] | [string],
   'utrDetails' : [] | [string],
@@ -68,11 +69,13 @@ export interface Product {
   'name' : string,
   'rate' : number,
   'unit' : string,
+  'imageBase64' : string,
 }
 export interface ProductInput {
   'name' : string,
   'rate' : number,
   'unit' : string,
+  'imageBase64' : [] | [string],
 }
 export interface RiderAssignment {
   'orderId' : string,
@@ -107,7 +110,16 @@ export type UserRole = { 'manager' : null } |
 export interface _SERVICE {
   'addCustomer' : ActorMethod<[string, Customer], undefined>,
   'addPayment' : ActorMethod<
-    [string, string, string, number, string, [] | [string], [] | [string]],
+    [
+      string,
+      string,
+      string,
+      number,
+      string,
+      [] | [string],
+      [] | [string],
+      string,
+    ],
     undefined
   >,
   'adminLogin' : ActorMethod<[string, string], string>,
@@ -137,6 +149,7 @@ export interface _SERVICE {
       string,
       [] | [string],
       [] | [string],
+      string,
     ],
     undefined
   >,
@@ -210,6 +223,7 @@ export interface _SERVICE {
   'updateCustomer' : ActorMethod<[string, string, Customer], undefined>,
   'updateOrderStatus' : ActorMethod<[string, string, string], undefined>,
   'updateOrderStatusRider' : ActorMethod<[string, string, string], undefined>,
+  'updateProductImage' : ActorMethod<[string, bigint, string], undefined>,
   'updateProductRate' : ActorMethod<[string, bigint, number], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;

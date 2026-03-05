@@ -36,6 +36,7 @@ export const Product = IDL.Record({
   'name' : IDL.Text,
   'rate' : IDL.Float64,
   'unit' : IDL.Text,
+  'imageBase64' : IDL.Text,
 });
 export const Time = IDL.Int;
 export const Order = IDL.Record({
@@ -57,6 +58,7 @@ export const Order = IDL.Record({
 export const Payment = IDL.Record({
   'deleted' : IDL.Bool,
   'paymentMethod' : IDL.Text,
+  'paymentAdviceImage' : IDL.Text,
   'storeNumber' : IDL.Text,
   'deleteReason' : IDL.Opt(IDL.Text),
   'utrDetails' : IDL.Opt(IDL.Text),
@@ -103,6 +105,7 @@ export const ProductInput = IDL.Record({
   'name' : IDL.Text,
   'rate' : IDL.Float64,
   'unit' : IDL.Text,
+  'imageBase64' : IDL.Opt(IDL.Text),
 });
 
 export const idlService = IDL.Service({
@@ -116,6 +119,7 @@ export const idlService = IDL.Service({
         IDL.Text,
         IDL.Opt(IDL.Text),
         IDL.Opt(IDL.Text),
+        IDL.Text,
       ],
       [],
       [],
@@ -149,6 +153,7 @@ export const idlService = IDL.Service({
         IDL.Text,
         IDL.Opt(IDL.Text),
         IDL.Opt(IDL.Text),
+        IDL.Text,
       ],
       [],
       [],
@@ -257,6 +262,7 @@ export const idlService = IDL.Service({
   'updateCustomer' : IDL.Func([IDL.Text, IDL.Text, Customer], [], []),
   'updateOrderStatus' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
   'updateOrderStatusRider' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
+  'updateProductImage' : IDL.Func([IDL.Text, IDL.Nat, IDL.Text], [], []),
   'updateProductRate' : IDL.Func([IDL.Text, IDL.Nat, IDL.Float64], [], []),
 });
 
@@ -291,6 +297,7 @@ export const idlFactory = ({ IDL }) => {
     'name' : IDL.Text,
     'rate' : IDL.Float64,
     'unit' : IDL.Text,
+    'imageBase64' : IDL.Text,
   });
   const Time = IDL.Int;
   const Order = IDL.Record({
@@ -312,6 +319,7 @@ export const idlFactory = ({ IDL }) => {
   const Payment = IDL.Record({
     'deleted' : IDL.Bool,
     'paymentMethod' : IDL.Text,
+    'paymentAdviceImage' : IDL.Text,
     'storeNumber' : IDL.Text,
     'deleteReason' : IDL.Opt(IDL.Text),
     'utrDetails' : IDL.Opt(IDL.Text),
@@ -358,6 +366,7 @@ export const idlFactory = ({ IDL }) => {
     'name' : IDL.Text,
     'rate' : IDL.Float64,
     'unit' : IDL.Text,
+    'imageBase64' : IDL.Opt(IDL.Text),
   });
   
   return IDL.Service({
@@ -371,6 +380,7 @@ export const idlFactory = ({ IDL }) => {
           IDL.Text,
           IDL.Opt(IDL.Text),
           IDL.Opt(IDL.Text),
+          IDL.Text,
         ],
         [],
         [],
@@ -408,6 +418,7 @@ export const idlFactory = ({ IDL }) => {
           IDL.Text,
           IDL.Opt(IDL.Text),
           IDL.Opt(IDL.Text),
+          IDL.Text,
         ],
         [],
         [],
@@ -520,6 +531,7 @@ export const idlFactory = ({ IDL }) => {
     'updateCustomer' : IDL.Func([IDL.Text, IDL.Text, Customer], [], []),
     'updateOrderStatus' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
     'updateOrderStatusRider' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
+    'updateProductImage' : IDL.Func([IDL.Text, IDL.Nat, IDL.Text], [], []),
     'updateProductRate' : IDL.Func([IDL.Text, IDL.Nat, IDL.Float64], [], []),
   });
 };

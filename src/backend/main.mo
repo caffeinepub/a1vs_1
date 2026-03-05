@@ -23,6 +23,7 @@ actor {
     active : Bool;
     unit : Text;
     rate : Float;
+    imageBase64 : Text;
   };
 
   module Product {
@@ -35,6 +36,7 @@ actor {
     name : Text;
     unit : Text;
     rate : Float;
+    imageBase64 : ?Text;
   };
 
   type Customer = {
@@ -96,6 +98,7 @@ actor {
     timestamp : Time.Time;
     deleted : Bool;
     deleteReason : ?Text;
+    paymentAdviceImage : Text;
   };
 
   public type UserRole = { #admin; #manager; #accounts };
@@ -288,7 +291,7 @@ actor {
 
     var idCounter = 1;
     for (name in productNames.values()) {
-      let product : Product = { id = idCounter; name; active = true; unit = "KGS"; rate = 0.0 };
+      let product : Product = { id = idCounter; name; active = true; unit = "KGS"; rate = 0.0; imageBase64 = "" };
       products.add(idCounter, product);
       idCounter += 1;
     };
@@ -309,6 +312,7 @@ actor {
           active = not product.active;
           unit = product.unit;
           rate = product.rate;
+          imageBase64 = product.imageBase64;
         };
         products.add(productId, updatedProduct);
       };
@@ -326,6 +330,7 @@ actor {
           active = product.active;
           unit = product.unit;
           rate = newRate;
+          imageBase64 = product.imageBase64;
         };
         products.add(productId, updatedProduct);
       };
@@ -344,6 +349,10 @@ actor {
         active = true;
         unit = item.unit;
         rate = item.rate;
+        imageBase64 = switch (item.imageBase64) {
+          case (null) { "" };
+          case (?image) { image };
+        };
       };
       products.add(idCounter, product);
       idCounter += 1;
@@ -353,6 +362,27 @@ actor {
   public query ({ caller }) func getAllProducts(token : Text) : async [Product] {
     validateSession(token, null);
     products.values().toArray();
+  };
+
+  //---------------------
+  // New Product Image Handling API
+  //---------------------
+  public shared ({ caller }) func updateProductImage(token : Text, productId : Nat, imageBase64 : Text) : async () {
+    validateSession(token, ?#admin);
+    switch (products.get(productId)) {
+      case (null) { Runtime.trap("Product not found") };
+      case (?product) {
+        let updatedProduct : Product = {
+          id = product.id;
+          name = product.name;
+          active = product.active;
+          unit = product.unit;
+          rate = product.rate;
+          imageBase64;
+        };
+        products.add(productId, updatedProduct);
+      };
+    };
   };
 
   //---------------------
@@ -629,6 +659,7 @@ actor {
     paymentMethod : Text,
     chequeDetails : ?Text,
     utrDetails : ?Text,
+    paymentAdviceImage : Text,
   ) : async () {
     validateSession(token, ?#admin);
 
@@ -644,6 +675,7 @@ actor {
       timestamp = Time.now();
       deleted = false;
       deleteReason = null;
+      paymentAdviceImage;
     };
 
     payments.add(paymentId, payment);
@@ -662,6 +694,7 @@ actor {
     paymentMethod : Text,
     chequeDetails : ?Text,
     utrDetails : ?Text,
+    paymentAdviceImage : Text,
   ) : async () {
     validateSession(token, ?#admin);
 
@@ -679,6 +712,7 @@ actor {
           timestamp = Time.now();
           deleted = existingPayment.deleted;
           deleteReason = existingPayment.deleteReason;
+          paymentAdviceImage;
         };
 
         payments.add(paymentId, updatedPayment);
@@ -715,6 +749,7 @@ actor {
           timestamp = payment.timestamp;
           deleted = true;
           deleteReason = ?reason;
+          paymentAdviceImage = payment.paymentAdviceImage;
         };
         payments.add(paymentId, updatedPayment);
       };

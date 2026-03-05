@@ -17,6 +17,7 @@ export interface ProductInput {
     name: string;
     rate: number;
     unit: string;
+    imageBase64?: string;
 }
 export interface CompanyProfile {
     logoBase64: string;
@@ -56,6 +57,7 @@ export interface SubUser {
 export interface Payment {
     deleted: boolean;
     paymentMethod: string;
+    paymentAdviceImage: string;
     storeNumber: string;
     deleteReason?: string;
     utrDetails?: string;
@@ -87,6 +89,7 @@ export interface Product {
     name: string;
     rate: number;
     unit: string;
+    imageBase64: string;
 }
 export interface Customer {
     storeNumber: string;
@@ -105,7 +108,7 @@ export enum UserRole {
 }
 export interface backendInterface {
     addCustomer(token: string, customer: Customer): Promise<void>;
-    addPayment(token: string, storeNumber: string, companyName: string, amount: number, paymentMethod: string, chequeDetails: string | null, utrDetails: string | null): Promise<void>;
+    addPayment(token: string, storeNumber: string, companyName: string, amount: number, paymentMethod: string, chequeDetails: string | null, utrDetails: string | null, paymentAdviceImage: string): Promise<void>;
     adminLogin(email: string, password: string): Promise<string>;
     assignRider(token: string, orderId: string, riderEmail: string, riderName: string, riderPhone: string): Promise<void>;
     changeAdminPassword(token: string, newPassword: string): Promise<void>;
@@ -117,7 +120,7 @@ export interface backendInterface {
     deleteOrder(token: string, orderId: string, reason: string): Promise<void>;
     deletePayment(token: string, paymentId: string, reason: string): Promise<void>;
     editOrderItems(token: string, orderId: string, newItems: Array<OrderItem>): Promise<void>;
-    editPayment(token: string, paymentId: string, storeNumber: string, companyName: string, amount: number, paymentMethod: string, chequeDetails: string | null, utrDetails: string | null): Promise<void>;
+    editPayment(token: string, paymentId: string, storeNumber: string, companyName: string, amount: number, paymentMethod: string, chequeDetails: string | null, utrDetails: string | null, paymentAdviceImage: string): Promise<void>;
     getActiveProducts(): Promise<Array<Product>>;
     getAdminRole(token: string): Promise<string>;
     getAdminStatus(_token: string): Promise<boolean>;
@@ -162,5 +165,6 @@ export interface backendInterface {
     updateCustomer(token: string, storeNumber: string, updatedCustomer: Customer): Promise<void>;
     updateOrderStatus(token: string, orderId: string, status: string): Promise<void>;
     updateOrderStatusRider(token: string, orderId: string, status: string): Promise<void>;
+    updateProductImage(token: string, productId: bigint, imageBase64: string): Promise<void>;
     updateProductRate(token: string, productId: bigint, newRate: number): Promise<void>;
 }

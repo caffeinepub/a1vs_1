@@ -34,11 +34,13 @@ import {
   Download,
   Edit2,
   FileText,
+  ImagePlus,
   Loader2,
   Search,
   Trash2,
+  X,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import type {
   CompanyProfile,
@@ -596,6 +598,8 @@ function PaymentFeedTab() {
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [chequeDetails, setChequeDetails] = useState("");
   const [utrDetails, setUtrDetails] = useState("");
+  const [paymentAdviceImage, setPaymentAdviceImage] = useState("");
+  const adviceImageRef = useRef<HTMLInputElement>(null);
 
   // Edit payment state
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
@@ -605,6 +609,11 @@ function PaymentFeedTab() {
   const [editPaymentMethod, setEditPaymentMethod] = useState("cash");
   const [editChequeDetails, setEditChequeDetails] = useState("");
   const [editUtrDetails, setEditUtrDetails] = useState("");
+  const [editAdviceImage, setEditAdviceImage] = useState("");
+  const editAdviceImageRef = useRef<HTMLInputElement>(null);
+
+  // Lightbox state for viewing payment advice image
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   // Delete payment state (admin only)
   const [deletingPayment, setDeletingPayment] = useState<Payment | null>(null);
@@ -629,6 +638,21 @@ function PaymentFeedTab() {
     (c) => c.storeNumber === selectedStore,
   );
 
+  const handleAdviceImageChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    setter: (v: string) => void,
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    setter(base64);
+  };
+
   const addPaymentMutation = useMutation({
     mutationFn: () => {
       const amtNum = Number.parseFloat(amount);
@@ -642,6 +666,7 @@ function PaymentFeedTab() {
         paymentMethod,
         paymentMethod === "cheque" ? chequeDetails : null,
         paymentMethod === "online" ? utrDetails : null,
+        paymentAdviceImage,
       );
     },
     onSuccess: () => {
@@ -649,6 +674,8 @@ function PaymentFeedTab() {
       setAmount("");
       setChequeDetails("");
       setUtrDetails("");
+      setPaymentAdviceImage("");
+      if (adviceImageRef.current) adviceImageRef.current.value = "";
       qc.invalidateQueries({ queryKey: ["all-payments"] });
     },
     onError: (err) => {
@@ -673,11 +700,14 @@ function PaymentFeedTab() {
         editPaymentMethod,
         editPaymentMethod === "cheque" ? editChequeDetails || null : null,
         editPaymentMethod === "online" ? editUtrDetails || null : null,
+        editAdviceImage,
       );
     },
     onSuccess: () => {
       toast.success("Payment updated");
       setEditingPayment(null);
+      setEditAdviceImage("");
+      if (editAdviceImageRef.current) editAdviceImageRef.current.value = "";
       qc.invalidateQueries({ queryKey: ["all-payments"] });
     },
     onError: (err) => {
@@ -819,6 +849,63 @@ function PaymentFeedTab() {
                 </div>
               )}
 
+              {/* Payment Advice Image */}
+              <div className="space-y-2">
+                <Label className="text-sm">Payment Advice (optional)</Label>
+                <input
+                  ref={adviceImageRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) =>
+                    handleAdviceImageChange(e, setPaymentAdviceImage)
+                  }
+                />
+                {paymentAdviceImage ? (
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setLightboxImage(paymentAdviceImage)}
+                      className="shrink-0"
+                    >
+                      <img
+                        src={paymentAdviceImage}
+                        alt="Payment advice"
+                        className="w-16 h-16 rounded-lg object-cover border border-border hover:opacity-80 transition-opacity"
+                      />
+                    </button>
+                    <div className="flex-1 text-xs text-muted-foreground">
+                      Image attached
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                      onClick={() => {
+                        setPaymentAdviceImage("");
+                        if (adviceImageRef.current)
+                          adviceImageRef.current.value = "";
+                      }}
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 h-9 w-full"
+                    onClick={() => adviceImageRef.current?.click()}
+                    data-ocid="accounts.payment.upload_button"
+                  >
+                    <ImagePlus className="w-4 h-4" />
+                    Upload Image
+                  </Button>
+                )}
+              </div>
+
               <Button
                 type="submit"
                 className="w-full gap-2"
@@ -900,6 +987,9 @@ function PaymentFeedTab() {
                                   payment.chequeDetails ?? "",
                                 );
                                 setEditUtrDetails(payment.utrDetails ?? "");
+                                setEditAdviceImage(
+                                  payment.paymentAdviceImage ?? "",
+                                );
                               }}
                             >
                               <Edit2 className="w-3 h-3" />
@@ -938,6 +1028,23 @@ function PaymentFeedTab() {
                       <p className="text-xs text-muted-foreground mt-1">
                         UTR: {payment.utrDetails}
                       </p>
+                    )}
+                    {payment.paymentAdviceImage && (
+                      <div className="mt-1">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setLightboxImage(payment.paymentAdviceImage)
+                          }
+                          title="View payment advice"
+                        >
+                          <img
+                            src={payment.paymentAdviceImage}
+                            alt="Payment advice"
+                            className="w-8 h-8 rounded object-cover border border-border hover:opacity-80 transition-opacity"
+                          />
+                        </button>
+                      </div>
                     )}
                     {payment.deleted && payment.deleteReason && (
                       <p className="text-xs text-red-600 mt-1 font-medium">
@@ -1029,6 +1136,30 @@ function PaymentFeedTab() {
               Delete Payment
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment Advice Lightbox */}
+      <Dialog
+        open={!!lightboxImage}
+        onOpenChange={(open) => !open && setLightboxImage(null)}
+      >
+        <DialogContent
+          className="max-w-2xl p-2"
+          data-ocid="accounts.payment_advice.dialog"
+        >
+          <DialogHeader className="px-3 pt-2 pb-1">
+            <DialogTitle className="font-heading text-sm">
+              Payment Advice
+            </DialogTitle>
+          </DialogHeader>
+          {lightboxImage && (
+            <img
+              src={lightboxImage}
+              alt="Payment advice full"
+              className="w-full rounded-lg object-contain max-h-[70vh]"
+            />
+          )}
         </DialogContent>
       </Dialog>
 
@@ -1127,6 +1258,61 @@ function PaymentFeedTab() {
                 />
               </div>
             )}
+
+            {/* Payment Advice Image */}
+            <div className="space-y-2">
+              <Label className="text-sm">Payment Advice (optional)</Label>
+              <input
+                ref={editAdviceImageRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handleAdviceImageChange(e, setEditAdviceImage)}
+              />
+              {editAdviceImage ? (
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setLightboxImage(editAdviceImage)}
+                    className="shrink-0"
+                  >
+                    <img
+                      src={editAdviceImage}
+                      alt="Payment advice"
+                      className="w-16 h-16 rounded-lg object-cover border border-border hover:opacity-80 transition-opacity"
+                    />
+                  </button>
+                  <div className="flex-1 text-xs text-muted-foreground">
+                    Image attached
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                    onClick={() => {
+                      setEditAdviceImage("");
+                      if (editAdviceImageRef.current)
+                        editAdviceImageRef.current.value = "";
+                    }}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 h-9 w-full"
+                  onClick={() => editAdviceImageRef.current?.click()}
+                  data-ocid="accounts.edit_payment.upload_button"
+                >
+                  <ImagePlus className="w-4 h-4" />
+                  Upload Image
+                </Button>
+              )}
+            </div>
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setEditingPayment(null)}>
