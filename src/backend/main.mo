@@ -9,9 +9,9 @@ import List "mo:core/List";
 import Nat "mo:core/Nat";
 import Timer "mo:core/Timer";
 import Float "mo:core/Float";
-import Migration "migration";
 
-(with migration = Migration.run)
+
+
 actor {
   //---------------------
   // Types & Constants

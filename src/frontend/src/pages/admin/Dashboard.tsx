@@ -274,31 +274,31 @@ export default function Dashboard() {
         </p>
       </div>
 
-      {/* Stats Grid — 2 cols mobile, 5 cols xl */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+      {/* Stats Grid — 3 cols mobile, 4 sm, 5 lg, 6 xl */}
+      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
         {statsCards.map(({ title, value, icon: Icon, desc, color, bg }) => (
           <Card key={title} className="shadow-xs">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4 px-4">
-              <CardTitle className="text-xs font-medium text-muted-foreground leading-tight">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2 px-2 sm:pt-3 sm:px-3">
+              <CardTitle className="text-[10px] sm:text-xs font-medium text-muted-foreground leading-tight line-clamp-2">
                 {title}
               </CardTitle>
               <div
-                className={`w-7 h-7 rounded-lg ${bg} flex items-center justify-center shrink-0`}
+                className={`w-5 h-5 sm:w-6 sm:h-6 rounded-md ${bg} flex items-center justify-center shrink-0 ml-1`}
               >
-                <Icon className={`w-3.5 h-3.5 ${color}`} />
+                <Icon className={`w-2.5 h-2.5 sm:w-3 sm:h-3 ${color}`} />
               </div>
             </CardHeader>
-            <CardContent className="px-4 pb-4">
+            <CardContent className="px-2 pb-2 sm:px-3 sm:pb-3">
               {isLoading ? (
-                <Skeleton className="h-7 w-14" />
+                <Skeleton className="h-5 w-10 sm:h-6 sm:w-12" />
               ) : (
                 <div
-                  className={`text-2xl font-heading font-bold ${color} leading-tight`}
+                  className={`text-base sm:text-xl font-heading font-bold ${color} leading-tight`}
                 >
                   {value}
                 </div>
               )}
-              <p className="text-[11px] text-muted-foreground mt-1 leading-tight">
+              <p className="text-[9px] sm:text-[11px] text-muted-foreground mt-0.5 leading-tight hidden sm:block">
                 {desc}
               </p>
             </CardContent>

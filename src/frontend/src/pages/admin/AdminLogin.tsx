@@ -1,3 +1,4 @@
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -10,10 +11,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "@tanstack/react-router";
-import { Loader2, ShieldCheck, Truck, UserCog } from "lucide-react";
+import {
+  AlertTriangle,
+  Loader2,
+  RefreshCw,
+  ShieldCheck,
+  Truck,
+  UserCog,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useActor } from "../../hooks/useActor";
+import {
+  getFriendlyErrorMessage,
+  isCanisterUnavailableError,
+} from "../../utils/icErrorUtils";
 
 // Rider profiles are fetched from the backend after login -- no localStorage needed
 
@@ -27,6 +39,7 @@ export default function AdminLogin() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubLoading, setIsSubLoading] = useState(false);
   const [isRiderLoading, setIsRiderLoading] = useState(false);
+  const [serviceError, setServiceError] = useState<string | null>(null);
   const { actor } = useActor();
   const navigate = useNavigate();
 
@@ -51,6 +64,7 @@ export default function AdminLogin() {
     }
 
     setIsLoading(true);
+    setServiceError(null);
     try {
       const token = await actor.adminLogin(email, password);
       localStorage.setItem("a1vs_admin_token", token);
@@ -58,9 +72,14 @@ export default function AdminLogin() {
       toast.success("Logged in successfully");
       navigate({ to: "/admin" });
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Invalid credentials";
-      toast.error(message);
+      if (isCanisterUnavailableError(err)) {
+        setServiceError(
+          "Service is temporarily unavailable. Please try again in a moment.",
+        );
+      } else {
+        const message = getFriendlyErrorMessage(err, "Invalid credentials");
+        toast.error(message);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -78,6 +97,7 @@ export default function AdminLogin() {
     }
 
     setIsSubLoading(true);
+    setServiceError(null);
     try {
       const token = await actor.subUserLoginV2(subEmail, subPassword);
       // Check if sub-user is actually a rider
@@ -116,9 +136,14 @@ export default function AdminLogin() {
       toast.success("Logged in successfully");
       navigate({ to: "/admin" });
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Invalid credentials";
-      toast.error(message);
+      if (isCanisterUnavailableError(err)) {
+        setServiceError(
+          "Service is temporarily unavailable. Please try again in a moment.",
+        );
+      } else {
+        const message = getFriendlyErrorMessage(err, "Invalid credentials");
+        toast.error(message);
+      }
     } finally {
       setIsSubLoading(false);
     }
@@ -136,6 +161,7 @@ export default function AdminLogin() {
     }
 
     setIsRiderLoading(true);
+    setServiceError(null);
     try {
       const token = await actor.subUserLoginV2(riderEmail, riderPassword);
       // Verify this user is a rider
@@ -167,9 +193,14 @@ export default function AdminLogin() {
       toast.success("Welcome, Rider! Loading your dashboard...");
       navigate({ to: "/rider" });
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Invalid credentials";
-      toast.error(message);
+      if (isCanisterUnavailableError(err)) {
+        setServiceError(
+          "Service is temporarily unavailable. Please try again in a moment.",
+        );
+      } else {
+        const message = getFriendlyErrorMessage(err, "Invalid credentials");
+        toast.error(message);
+      }
     } finally {
       setIsRiderLoading(false);
     }
@@ -210,6 +241,33 @@ export default function AdminLogin() {
           </div>
           <p className="text-muted-foreground mt-3 text-sm">Admin Portal</p>
         </div>
+
+        {/* Service unavailable banner */}
+        {serviceError && (
+          <Alert
+            variant="destructive"
+            className="mb-4 bg-amber-50 border-amber-300 text-amber-900"
+            data-ocid="admin.login.error_state"
+          >
+            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <AlertDescription className="flex items-center justify-between gap-3">
+              <span className="text-sm">{serviceError}</span>
+              <Button
+                size="sm"
+                variant="outline"
+                className="shrink-0 border-amber-400 text-amber-800 hover:bg-amber-100 h-7 px-2 text-xs gap-1"
+                onClick={() => {
+                  setServiceError(null);
+                  window.location.reload();
+                }}
+                data-ocid="admin.login.error_state.button"
+              >
+                <RefreshCw className="h-3 w-3" />
+                Retry
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
 
         <Card className="border-0 shadow-2xl bg-card/95 backdrop-blur-sm">
           <CardHeader className="space-y-1 pb-2">

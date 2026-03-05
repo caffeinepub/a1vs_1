@@ -7,6 +7,7 @@ import {
   createRouter,
   redirect,
 } from "@tanstack/react-router";
+import PWAInstallBanner from "./components/PWAInstallBanner";
 import Accounts from "./pages/admin/Accounts";
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminLogin from "./pages/admin/AdminLogin";
@@ -33,6 +34,7 @@ const rootRoute = createRootRoute({
     <>
       <Outlet />
       <Toaster richColors position="top-right" />
+      <PWAInstallBanner />
     </>
   ),
 });

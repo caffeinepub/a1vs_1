@@ -265,85 +265,85 @@ export default function CustomerDashboard() {
       </div>
 
       {/* Account summary cards */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-2">
         <Card className="bg-white border-green-100 shadow-xs">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center">
-                <ShoppingBag className="w-4 h-4 text-green-600" />
+          <CardContent className="p-2 sm:p-3">
+            <div className="flex items-center gap-1.5 mb-1">
+              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-md bg-green-50 flex items-center justify-center shrink-0">
+                <ShoppingBag className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-green-600" />
               </div>
-              <span className="text-xs font-medium text-green-800">
+              <span className="text-[10px] sm:text-xs font-medium text-green-800 leading-tight">
                 Total Orders
               </span>
             </div>
             {isLoading ? (
-              <Skeleton className="h-8 w-16" />
+              <Skeleton className="h-6 w-12" />
             ) : (
               <>
-                <p className="font-heading font-bold text-xl text-green-900">
+                <p className="font-heading font-bold text-base sm:text-xl text-green-900 leading-tight">
                   {orders.length}
                 </p>
-                <p className="text-xs text-green-600 mt-0.5">orders placed</p>
+                <p className="text-[9px] sm:text-xs text-green-600">placed</p>
               </>
             )}
           </CardContent>
         </Card>
         <Card className="bg-white border-green-100 shadow-xs">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-                <TrendingUp className="w-4 h-4 text-blue-600" />
+          <CardContent className="p-2 sm:p-3">
+            <div className="flex items-center gap-1.5 mb-1">
+              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-md bg-blue-50 flex items-center justify-center shrink-0">
+                <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-blue-600" />
               </div>
-              <span className="text-xs font-medium text-green-800">
+              <span className="text-[10px] sm:text-xs font-medium text-green-800 leading-tight">
                 Total Purchase
               </span>
             </div>
             {isStatementLoading ? (
-              <Skeleton className="h-8 w-16" />
+              <Skeleton className="h-6 w-12" />
             ) : (
               <>
-                <p className="font-heading font-bold text-lg text-green-900">
-                  ₹{totalDebit.toFixed(2)}
+                <p className="font-heading font-bold text-xs sm:text-base text-green-900 leading-tight">
+                  ₹{totalDebit.toFixed(0)}
                 </p>
-                <p className="text-xs text-green-600 mt-0.5">total billed</p>
+                <p className="text-[9px] sm:text-xs text-green-600">billed</p>
               </>
             )}
           </CardContent>
         </Card>
         <Card className="bg-white border-green-100 shadow-xs">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
+          <CardContent className="p-2 sm:p-3">
+            <div className="flex items-center gap-1.5 mb-1">
               <div
                 className={cn(
-                  "w-8 h-8 rounded-lg flex items-center justify-center",
+                  "w-6 h-6 sm:w-7 sm:h-7 rounded-md flex items-center justify-center shrink-0",
                   closingBalance > 0 ? "bg-red-50" : "bg-emerald-50",
                 )}
               >
                 <Wallet
                   className={cn(
-                    "w-4 h-4",
+                    "w-3 h-3 sm:w-3.5 sm:h-3.5",
                     closingBalance > 0 ? "text-red-500" : "text-emerald-600",
                   )}
                 />
               </div>
-              <span className="text-xs font-medium text-green-800">
-                Closing Balance
+              <span className="text-[10px] sm:text-xs font-medium text-green-800 leading-tight">
+                Balance Due
               </span>
             </div>
             {isStatementLoading ? (
-              <Skeleton className="h-8 w-16" />
+              <Skeleton className="h-6 w-12" />
             ) : (
               <>
                 <p
                   className={cn(
-                    "font-heading font-bold text-lg",
+                    "font-heading font-bold text-xs sm:text-base leading-tight",
                     closingBalance > 0 ? "text-red-600" : "text-emerald-600",
                   )}
                 >
-                  ₹{closingBalance.toFixed(2)}
+                  ₹{closingBalance.toFixed(0)}
                 </p>
-                <p className="text-xs text-green-600 mt-0.5">
-                  {closingBalance > 0 ? "amount due" : "fully paid"}
+                <p className="text-[9px] sm:text-xs text-green-600">
+                  {closingBalance > 0 ? "due" : "paid"}
                 </p>
               </>
             )}

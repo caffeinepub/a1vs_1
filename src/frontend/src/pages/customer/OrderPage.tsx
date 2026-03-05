@@ -290,11 +290,11 @@ export default function OrderPage() {
 
           {/* Product grid */}
           {productsLoading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              {Array.from({ length: 8 }).map((_, i) => (
+            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
+              {Array.from({ length: 12 }).map((_, i) => (
                 <div
                   key={i.toString()}
-                  className="bg-white rounded-xl border border-border h-56 animate-pulse"
+                  className="bg-white rounded-lg border border-border h-40 animate-pulse"
                 />
               ))}
             </div>
@@ -307,7 +307,7 @@ export default function OrderPage() {
               <p className="text-sm font-medium">No products found</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 pb-24">
+            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 pb-24">
               {filteredProducts.map((product) => {
                 const isInCart = cart.some((c) => c.productId === product.id);
                 const cartItem = cart.find((c) => c.productId === product.id);
@@ -315,37 +315,37 @@ export default function OrderPage() {
                 return (
                   <div
                     key={product.id.toString()}
-                    className="bg-white rounded-xl border border-border shadow-xs overflow-hidden flex flex-col"
+                    className="bg-white rounded-lg border border-border shadow-xs overflow-hidden flex flex-col"
                     data-ocid="order.product.card"
                   >
-                    {/* Image */}
+                    {/* Image — fixed compact height */}
                     {product.imageBase64 ? (
                       <img
                         src={product.imageBase64}
                         alt={product.name}
-                        className="aspect-square w-full object-cover rounded-t-xl"
+                        className="h-16 sm:h-20 w-full object-cover"
                       />
                     ) : (
-                      <div className="aspect-square w-full rounded-t-xl bg-green-50 flex items-center justify-center">
-                        <Leaf className="w-10 h-10 text-green-300" />
+                      <div className="h-16 sm:h-20 w-full bg-green-50 flex items-center justify-center">
+                        <Leaf className="w-6 h-6 text-green-300" />
                       </div>
                     )}
 
                     {/* Info */}
-                    <div className="p-2.5 flex flex-col flex-1 gap-2">
+                    <div className="p-1.5 flex flex-col flex-1 gap-1">
                       <div>
-                        <p className="font-medium text-sm leading-tight truncate">
+                        <p className="font-medium text-[11px] leading-tight line-clamp-2">
                           {product.name}
                         </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
                           {product.unit} · ₹{product.rate}
                         </p>
                       </div>
 
                       {/* In-cart badge */}
                       {isInCart && (
-                        <Badge className="bg-success/10 text-success border-0 text-[10px] w-fit">
-                          In Cart · {cartItem?.qty} {product.unit}
+                        <Badge className="bg-success/10 text-success border-0 text-[9px] w-fit px-1 py-0">
+                          ✓ {cartItem?.qty}
                         </Badge>
                       )}
 
@@ -360,7 +360,7 @@ export default function OrderPage() {
                             Number.parseInt(e.target.value) || 1,
                           )
                         }
-                        className="h-8 text-sm text-center font-semibold"
+                        className="h-6 text-xs text-center font-semibold px-1"
                         data-ocid="order.product.input"
                       />
 
@@ -369,7 +369,7 @@ export default function OrderPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="w-full h-8 text-xs gap-1 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                          className="w-full h-6 text-[10px] px-1 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
                           onClick={() => handleUpdateCartItem(product)}
                           data-ocid="order.product.save_button"
                         >
@@ -378,11 +378,11 @@ export default function OrderPage() {
                       ) : (
                         <Button
                           size="sm"
-                          className="w-full h-8 text-xs gap-1"
+                          className="w-full h-6 text-[10px] px-1 gap-0.5"
                           onClick={() => handleAddToCartFromGrid(product)}
                           data-ocid="order.product.primary_button"
                         >
-                          <Plus className="w-3 h-3" />
+                          <Plus className="w-2.5 h-2.5" />
                           Add
                         </Button>
                       )}

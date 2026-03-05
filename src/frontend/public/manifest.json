@@ -1,0 +1,27 @@
+{
+  "name": "A1VS - AONE VEGETABLES & SUPPLIER",
+  "short_name": "A1VS",
+  "description": "A-One Vegetables & Supplier ordering platform for customers, admin, and riders.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#16a34a",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/assets/generated/frontend/public/assets/generated/a1vs-icon-192.dim_192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/generated/frontend/public/assets/generated/a1vs-icon-512.dim_512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "food"],
+  "lang": "en"
+}
