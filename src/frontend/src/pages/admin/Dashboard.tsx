@@ -6,6 +6,7 @@ import {
   AlertCircle,
   BarChart3,
   CheckCircle2,
+  Clock,
   Package,
   ShoppingCart,
   TrendingDown,
@@ -14,7 +15,7 @@ import {
   Wallet,
   XCircle,
 } from "lucide-react";
-import type { Order } from "../../backend.d";
+import type { Order, Payment } from "../../backend.d";
 import { useActor } from "../../hooks/useActor";
 
 function formatDate(timestamp: bigint) {
@@ -84,7 +85,16 @@ export default function Dashboard() {
     enabled: !!actor && !isFetching,
   });
 
-  const isLoading = ordersLoading || customersLoading || productsLoading;
+  const { data: payments = [], isLoading: paymentsLoading } = useQuery<
+    Payment[]
+  >({
+    queryKey: ["admin-payments-dashboard", token],
+    queryFn: () => actor!.getAllPayments(token),
+    enabled: !!actor && !isFetching && !!token,
+  });
+
+  const isLoading =
+    ordersLoading || customersLoading || productsLoading || paymentsLoading;
 
   // ── Computed stats ──────────────────────────────────────────────────────────
   const nonDeletedOrders = orders.filter((o) => o.status !== "deleted");
@@ -107,6 +117,40 @@ export default function Dashboard() {
       ? nonDeletedOrders.reduce((sum, o) => sum + o.totalAmount, 0) /
         nonDeletedOrders.length
       : 0;
+
+  // Point 17: Revenue Till Today = delivered orders + accepted orders
+  const revenueTillToday = orders
+    .filter((o) => o.status === "delivered" || o.status === "accepted")
+    .reduce((sum, o) => sum + o.totalAmount, 0);
+
+  // Pending Due Amount = total debits (order amounts) minus total credits (payments)
+  const totalDebits = orders
+    .filter((o) => o.status !== "deleted")
+    .reduce((sum, o) => sum + o.totalAmount, 0);
+  const totalCredits = payments
+    .filter((p) => !p.deleted)
+    .reduce((sum, p) => sum + p.amount, 0);
+  const pendingDueAmount = totalDebits - totalCredits;
+
+  // Point 18: Average delivery time
+  const deliveredWithTiming = orders.filter(
+    (o) => o.status === "delivered" && o.deliveryStartTime && o.deliveryEndTime,
+  );
+  const avgDeliveryMins =
+    deliveredWithTiming.length > 0
+      ? deliveredWithTiming.reduce((sum, o) => {
+          const diffMs =
+            Number(o.deliveryEndTime! - o.deliveryStartTime!) / 1_000_000;
+          return sum + diffMs / 60_000;
+        }, 0) / deliveredWithTiming.length
+      : 0;
+
+  const avgDeliveryLabel =
+    avgDeliveryMins === 0
+      ? "N/A"
+      : avgDeliveryMins < 60
+        ? `${Math.round(avgDeliveryMins)} mins`
+        : `${Math.floor(avgDeliveryMins / 60)} hr ${Math.round(avgDeliveryMins % 60)} min`;
 
   const statsCards = [
     {
@@ -188,6 +232,30 @@ export default function Dashboard() {
       desc: "Total deleted orders",
       color: "text-destructive",
       bg: "bg-destructive/10",
+    },
+    {
+      title: "Revenue Till Today",
+      value: `₹${revenueTillToday.toFixed(0)}`,
+      icon: TrendingUp,
+      desc: "Delivered + Accepted orders",
+      color: "text-emerald-700",
+      bg: "bg-emerald-50",
+    },
+    {
+      title: "Pending Due Amount",
+      value: `₹${pendingDueAmount.toFixed(0)}`,
+      icon: Wallet,
+      desc: "Total outstanding balance",
+      color: "text-red-600",
+      bg: "bg-red-50",
+    },
+    {
+      title: "Avg Delivery Time",
+      value: avgDeliveryLabel,
+      icon: Clock,
+      desc: "All time average",
+      color: "text-violet-600",
+      bg: "bg-violet-50",
     },
   ];
 

@@ -11,7 +11,6 @@ import Timer "mo:core/Timer";
 import Float "mo:core/Float";
 import Migration "migration";
 
-// Instruct to run data migration on upgrade
 (with migration = Migration.run)
 actor {
   //---------------------
@@ -85,6 +84,9 @@ actor {
     gstNumber : ?Text;
     deleteReason : ?Text;
     deliverySignature : ?Text;
+    deliverySignedAt : ?Time.Time;
+    deliveryStartTime : ?Time.Time;
+    deliveryEndTime : ?Time.Time;
   };
 
   type Payment = {
@@ -470,6 +472,9 @@ actor {
       poNumber = orderId;
       deleteReason = null;
       deliverySignature = null;
+      deliverySignedAt = null;
+      deliveryStartTime = null;
+      deliveryEndTime = null;
     };
 
     orders.add(orderId, order);
@@ -511,6 +516,9 @@ actor {
       gstNumber;
       deleteReason = null;
       deliverySignature = null;
+      deliverySignedAt = null;
+      deliveryStartTime = null;
+      deliveryEndTime = null;
     };
 
     orders.add(orderId, order);
@@ -550,6 +558,9 @@ actor {
           gstNumber = order.gstNumber;
           deleteReason = order.deleteReason;
           deliverySignature = order.deliverySignature;
+          deliverySignedAt = order.deliverySignedAt;
+          deliveryStartTime = if (status == "on_the_way") { ?Time.now() } else { order.deliveryStartTime };
+          deliveryEndTime = if (status == "delivered") { ?Time.now() } else { order.deliveryEndTime };
         };
         orders.add(orderId, updatedOrder);
       };
@@ -582,6 +593,9 @@ actor {
           gstNumber = existingOrder.gstNumber;
           deleteReason = existingOrder.deleteReason;
           deliverySignature = existingOrder.deliverySignature;
+          deliverySignedAt = existingOrder.deliverySignedAt;
+          deliveryStartTime = existingOrder.deliveryStartTime;
+          deliveryEndTime = existingOrder.deliveryEndTime;
         };
 
         orders.add(orderId, updatedOrder);
@@ -612,6 +626,9 @@ actor {
           gstNumber = order.gstNumber;
           deleteReason = ?reason;
           deliverySignature = order.deliverySignature;
+          deliverySignedAt = order.deliverySignedAt;
+          deliveryStartTime = order.deliveryStartTime;
+          deliveryEndTime = order.deliveryEndTime;
         };
         orders.add(orderId, updatedOrder);
       };
@@ -642,6 +659,9 @@ actor {
           deleteReason = order.deleteReason;
           deliverySignature = ?signatureData;
           invoiceNumber = ?("INV-" # orderId);
+          deliverySignedAt = ?Time.now();
+          deliveryStartTime = order.deliveryStartTime;
+          deliveryEndTime = ?Time.now();
         };
         orders.add(orderId, updatedOrder);
       };
@@ -1045,6 +1065,9 @@ actor {
           gstNumber = order.gstNumber;
           deleteReason = order.deleteReason;
           deliverySignature = order.deliverySignature;
+          deliverySignedAt = order.deliverySignedAt;
+          deliveryStartTime = if (status == "on_the_way") { ?Time.now() } else { order.deliveryStartTime };
+          deliveryEndTime = if (status == "delivered") { ?Time.now() } else { order.deliveryEndTime };
         };
         orders.add(orderId, updatedOrder);
       };

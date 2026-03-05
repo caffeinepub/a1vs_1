@@ -386,6 +386,22 @@ function drawTotalAndSignatures(
   doc.setFontSize(7);
   doc.setTextColor(120, 120, 120);
   doc.text("Received on delivery", margin, sigBlockY + 36);
+  // Show signed-at timestamp if available
+  if (order.deliverySignedAt) {
+    const signedMs = Number(order.deliverySignedAt) / 1_000_000;
+    const signedStr = new Date(signedMs).toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+    doc.setFontSize(6.5);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Signed: ${signedStr}`, margin, sigBlockY + 41);
+  }
 
   // Right signature: Company stamp box
   const rightSigX = pageW - margin - 65;

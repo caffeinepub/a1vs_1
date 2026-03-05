@@ -3,73 +3,103 @@ import Nat "mo:core/Nat";
 import Time "mo:core/Time";
 
 module {
-  type OldProduct = {
-    id : Nat;
-    name : Text;
-    active : Bool;
-    unit : Text;
-    rate : Float;
-  };
-
-  type OldPayment = {
-    paymentId : Text;
+  // Old types matching previous implementation
+  type OldOrder = {
+    orderId : Text;
     storeNumber : Text;
     companyName : Text;
-    amount : Float;
-    paymentMethod : Text;
-    chequeDetails : ?Text;
-    utrDetails : ?Text;
+    address : Text;
+    items : [OldOrderItem];
     timestamp : Time.Time;
-    deleted : Bool;
+    status : Text;
+    totalAmount : Float;
+    invoiceNumber : ?Text;
+    paymentMethod : Text;
+    poNumber : Text;
+    gstNumber : ?Text;
     deleteReason : ?Text;
+    deliverySignature : ?Text;
+  };
+
+  type OldOrderItem = {
+    productId : Nat;
+    productName : Text;
+    qty : Nat;
+    rate : Float;
+    unit : Text;
   };
 
   type OldActor = {
-    products : Map.Map<Nat, OldProduct>;
-    payments : Map.Map<Text, OldPayment>;
+    orders : Map.Map<Text, OldOrder>;
   };
 
-  type NewProduct = {
-    id : Nat;
-    name : Text;
-    active : Bool;
-    unit : Text;
-    rate : Float;
-    imageBase64 : Text;
-  };
-
-  type NewPayment = {
-    paymentId : Text;
+  // New order type with explicit fields
+  type NewOrder = {
+    orderId : Text;
     storeNumber : Text;
     companyName : Text;
-    amount : Float;
-    paymentMethod : Text;
-    chequeDetails : ?Text;
-    utrDetails : ?Text;
+    address : Text;
+    items : [NewOrderItem];
     timestamp : Time.Time;
-    deleted : Bool;
+    status : Text;
+    totalAmount : Float;
+    invoiceNumber : ?Text;
+    paymentMethod : Text;
+    poNumber : Text;
+    gstNumber : ?Text;
     deleteReason : ?Text;
-    paymentAdviceImage : Text;
+    deliverySignature : ?Text;
+    deliverySignedAt : ?Time.Time;
+    deliveryStartTime : ?Time.Time;
+    deliveryEndTime : ?Time.Time;
+  };
+
+  type NewOrderItem = {
+    productId : Nat;
+    productName : Text;
+    qty : Nat;
+    rate : Float;
+    unit : Text;
   };
 
   type NewActor = {
-    products : Map.Map<Nat, NewProduct>;
-    payments : Map.Map<Text, NewPayment>;
+    orders : Map.Map<Text, NewOrder>;
   };
 
   public func run(old : OldActor) : NewActor {
-    let newProducts = old.products.map<Nat, OldProduct, NewProduct>(
-      func(_id, oldProduct) {
-        { oldProduct with imageBase64 = "" };
+    let newOrders = old.orders.map<Text, OldOrder, NewOrder>(
+      func(orderId, oldOrder) {
+        {
+          orderId = oldOrder.orderId;
+          storeNumber = oldOrder.storeNumber;
+          companyName = oldOrder.companyName;
+          address = oldOrder.address;
+          items = oldOrder.items.map(
+            func(oldItem) {
+              {
+                productId = oldItem.productId;
+                productName = oldItem.productName;
+                qty = oldItem.qty;
+                rate = oldItem.rate;
+                unit = oldItem.unit;
+              };
+            }
+          );
+          timestamp = oldOrder.timestamp;
+          status = oldOrder.status;
+          totalAmount = oldOrder.totalAmount;
+          invoiceNumber = oldOrder.invoiceNumber;
+          paymentMethod = oldOrder.paymentMethod;
+          poNumber = oldOrder.poNumber;
+          gstNumber = oldOrder.gstNumber;
+          deleteReason = oldOrder.deleteReason;
+          deliverySignature = oldOrder.deliverySignature;
+          deliverySignedAt = null;
+          deliveryStartTime = null;
+          deliveryEndTime = null;
+        };
       }
     );
-
-    let newPayments = old.payments.map<Text, OldPayment, NewPayment>(
-      func(_id, oldPayment) {
-        { oldPayment with paymentAdviceImage = "" };
-      }
-    );
-
-    { old with products = newProducts; payments = newPayments };
+    { orders = newOrders };
   };
 };

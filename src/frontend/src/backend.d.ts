@@ -70,14 +70,17 @@ export interface Payment {
 export interface Order {
     status: string;
     paymentMethod: string;
+    deliverySignedAt?: Time;
     storeNumber: string;
     gstNumber?: string;
     deleteReason?: string;
     orderId: string;
+    deliveryStartTime?: Time;
     invoiceNumber?: string;
     deliverySignature?: string;
     totalAmount: number;
     address: string;
+    deliveryEndTime?: Time;
     timestamp: Time;
     companyName: string;
     items: Array<OrderItem>;

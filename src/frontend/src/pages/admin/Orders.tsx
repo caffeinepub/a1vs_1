@@ -24,6 +24,7 @@ import { useQuery as useReactQuery } from "@tanstack/react-query";
 import {
   AlertCircle,
   CheckCircle2,
+  Clock,
   Edit2,
   FileText,
   Loader2,
@@ -70,6 +71,16 @@ function formatDate(timestamp: bigint) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function formatDeliveryDuration(startNs: bigint, endNs: bigint): string {
+  const diffMs = Number(endNs - startNs) / 1_000_000;
+  const totalMinutes = Math.round(diffMs / 60_000);
+  if (totalMinutes < 60)
+    return `${totalMinutes} min${totalMinutes !== 1 ? "s" : ""}`;
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+  return mins > 0 ? `${hours} hr ${mins} min` : `${hours} hr`;
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -543,7 +554,7 @@ export default function Orders() {
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-3 text-sm">
                     <div>
                       <p className="text-xs text-muted-foreground">
                         Store / Company
@@ -566,6 +577,22 @@ export default function Orders() {
                         ₹{order.totalAmount.toFixed(2)}
                       </p>
                     </div>
+                    {order.status === "delivered" &&
+                      order.deliveryStartTime &&
+                      order.deliveryEndTime && (
+                        <div>
+                          <p className="text-xs text-muted-foreground">
+                            Delivery Time
+                          </p>
+                          <p className="font-semibold text-emerald-700 flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {formatDeliveryDuration(
+                              order.deliveryStartTime,
+                              order.deliveryEndTime,
+                            )}
+                          </p>
+                        </div>
+                      )}
                   </div>
 
                   <div className="mb-3">
