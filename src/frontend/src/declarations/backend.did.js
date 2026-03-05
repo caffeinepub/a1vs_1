@@ -8,6 +8,16 @@
 
 import { IDL } from '@icp-sdk/core/candid';
 
+export const Customer = IDL.Record({
+  'storeNumber' : IDL.Text,
+  'gstNumber' : IDL.Opt(IDL.Text),
+  'password' : IDL.Text,
+  'name' : IDL.Text,
+  'email' : IDL.Text,
+  'address' : IDL.Text,
+  'companyName' : IDL.Text,
+  'phone' : IDL.Text,
+});
 export const UserRole = IDL.Variant({
   'manager' : IDL.Null,
   'admin' : IDL.Null,
@@ -27,16 +37,6 @@ export const Product = IDL.Record({
   'rate' : IDL.Float64,
   'unit' : IDL.Text,
 });
-export const Customer = IDL.Record({
-  'storeNumber' : IDL.Text,
-  'gstNumber' : IDL.Opt(IDL.Text),
-  'password' : IDL.Text,
-  'name' : IDL.Text,
-  'email' : IDL.Text,
-  'address' : IDL.Text,
-  'companyName' : IDL.Text,
-  'phone' : IDL.Text,
-});
 export const Time = IDL.Int;
 export const Order = IDL.Record({
   'status' : IDL.Text,
@@ -46,6 +46,7 @@ export const Order = IDL.Record({
   'deleteReason' : IDL.Opt(IDL.Text),
   'orderId' : IDL.Text,
   'invoiceNumber' : IDL.Opt(IDL.Text),
+  'deliverySignature' : IDL.Opt(IDL.Text),
   'totalAmount' : IDL.Float64,
   'address' : IDL.Text,
   'timestamp' : Time,
@@ -54,14 +55,27 @@ export const Order = IDL.Record({
   'poNumber' : IDL.Text,
 });
 export const Payment = IDL.Record({
+  'deleted' : IDL.Bool,
   'paymentMethod' : IDL.Text,
   'storeNumber' : IDL.Text,
+  'deleteReason' : IDL.Opt(IDL.Text),
   'utrDetails' : IDL.Opt(IDL.Text),
   'paymentId' : IDL.Text,
   'timestamp' : Time,
   'companyName' : IDL.Text,
   'amount' : IDL.Float64,
   'chequeDetails' : IDL.Opt(IDL.Text),
+});
+export const RiderAssignment = IDL.Record({
+  'orderId' : IDL.Text,
+  'riderEmail' : IDL.Text,
+  'riderPhone' : IDL.Text,
+  'riderName' : IDL.Text,
+});
+export const RiderProfile = IDL.Record({
+  'name' : IDL.Text,
+  'email' : IDL.Text,
+  'phone' : IDL.Text,
 });
 export const SubUser = IDL.Record({
   'roleText' : IDL.Text,
@@ -85,6 +99,7 @@ export const ProductInput = IDL.Record({
 });
 
 export const idlService = IDL.Service({
+  'addCustomer' : IDL.Func([IDL.Text, Customer], [], []),
   'addPayment' : IDL.Func(
       [
         IDL.Text,
@@ -99,6 +114,11 @@ export const idlService = IDL.Service({
       [],
     ),
   'adminLogin' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
+  'assignRider' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [],
+      [],
+    ),
   'changeAdminPassword' : IDL.Func([IDL.Text, IDL.Text], [], []),
   'changeSubUserPassword' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
   'createSubUser' : IDL.Func([IDL.Text, IDL.Text, UserRole], [], []),
@@ -108,7 +128,9 @@ export const idlService = IDL.Service({
       [],
     ),
   'customerLogin' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
+  'deleteCustomer' : IDL.Func([IDL.Text, IDL.Text], [], []),
   'deleteOrder' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
+  'deletePayment' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
   'editOrderItems' : IDL.Func([IDL.Text, IDL.Text, IDL.Vec(OrderItem)], [], []),
   'editPayment' : IDL.Func(
       [
@@ -125,10 +147,20 @@ export const idlService = IDL.Service({
       [],
     ),
   'getActiveProducts' : IDL.Func([], [IDL.Vec(Product)], ['query']),
+  'getAdminRole' : IDL.Func([IDL.Text], [IDL.Text], []),
+  'getAdminStatus' : IDL.Func([IDL.Text], [IDL.Bool], []),
+  'getAllCustomerOrders' : IDL.Func([IDL.Text], [IDL.Vec(Order)], []),
+  'getAllCustomerPayments' : IDL.Func([IDL.Text], [IDL.Vec(Payment)], []),
   'getAllCustomers' : IDL.Func([IDL.Text], [IDL.Vec(Customer)], []),
   'getAllOrders' : IDL.Func([IDL.Text], [IDL.Vec(Order)], []),
   'getAllPayments' : IDL.Func([IDL.Text], [IDL.Vec(Payment)], []),
   'getAllProducts' : IDL.Func([IDL.Text], [IDL.Vec(Product)], ['query']),
+  'getAllRiderAssignments' : IDL.Func(
+      [IDL.Text],
+      [IDL.Vec(RiderAssignment)],
+      [],
+    ),
+  'getAllRiderProfiles' : IDL.Func([IDL.Text], [IDL.Vec(RiderProfile)], []),
   'getAllSubUsers' : IDL.Func([IDL.Text], [IDL.Vec(SubUser)], []),
   'getCompanyStatement' : IDL.Func(
       [IDL.Text, IDL.Int, IDL.Int],
@@ -160,8 +192,24 @@ export const idlService = IDL.Service({
       [],
     ),
   'getOrdersByStore' : IDL.Func([IDL.Text, IDL.Text], [IDL.Vec(Order)], []),
+  'getOrdersForRider' : IDL.Func([IDL.Text, IDL.Text], [IDL.Vec(Order)], []),
   'getPaymentsByStore' : IDL.Func([IDL.Text, IDL.Text], [IDL.Vec(Payment)], []),
+  'getRiderAssignment' : IDL.Func(
+      [IDL.Text, IDL.Text],
+      [IDL.Opt(RiderAssignment)],
+      [],
+    ),
+  'getRiderProfile' : IDL.Func(
+      [IDL.Text, IDL.Text],
+      [IDL.Opt(RiderProfile)],
+      [],
+    ),
   'getWebhookUrl' : IDL.Func([IDL.Text], [IDL.Text], []),
+  'markOrderDeliveredWithSignature' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text],
+      [],
+      [],
+    ),
   'placeOrder' : IDL.Func(
       [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Vec(OrderItem)],
       [IDL.Text],
@@ -187,6 +235,11 @@ export const idlService = IDL.Service({
       [],
       [],
     ),
+  'saveRiderProfile' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [],
+      [],
+    ),
   'setWebhookUrl' : IDL.Func([IDL.Text, IDL.Text], [], []),
   'subUserLogin' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
   'subUserLoginV2' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
@@ -194,12 +247,23 @@ export const idlService = IDL.Service({
   'toggleSubUser' : IDL.Func([IDL.Text, IDL.Text], [], []),
   'updateCustomer' : IDL.Func([IDL.Text, IDL.Text, Customer], [], []),
   'updateOrderStatus' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
+  'updateOrderStatusRider' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
   'updateProductRate' : IDL.Func([IDL.Text, IDL.Nat, IDL.Float64], [], []),
 });
 
 export const idlInitArgs = [];
 
 export const idlFactory = ({ IDL }) => {
+  const Customer = IDL.Record({
+    'storeNumber' : IDL.Text,
+    'gstNumber' : IDL.Opt(IDL.Text),
+    'password' : IDL.Text,
+    'name' : IDL.Text,
+    'email' : IDL.Text,
+    'address' : IDL.Text,
+    'companyName' : IDL.Text,
+    'phone' : IDL.Text,
+  });
   const UserRole = IDL.Variant({
     'manager' : IDL.Null,
     'admin' : IDL.Null,
@@ -219,16 +283,6 @@ export const idlFactory = ({ IDL }) => {
     'rate' : IDL.Float64,
     'unit' : IDL.Text,
   });
-  const Customer = IDL.Record({
-    'storeNumber' : IDL.Text,
-    'gstNumber' : IDL.Opt(IDL.Text),
-    'password' : IDL.Text,
-    'name' : IDL.Text,
-    'email' : IDL.Text,
-    'address' : IDL.Text,
-    'companyName' : IDL.Text,
-    'phone' : IDL.Text,
-  });
   const Time = IDL.Int;
   const Order = IDL.Record({
     'status' : IDL.Text,
@@ -238,6 +292,7 @@ export const idlFactory = ({ IDL }) => {
     'deleteReason' : IDL.Opt(IDL.Text),
     'orderId' : IDL.Text,
     'invoiceNumber' : IDL.Opt(IDL.Text),
+    'deliverySignature' : IDL.Opt(IDL.Text),
     'totalAmount' : IDL.Float64,
     'address' : IDL.Text,
     'timestamp' : Time,
@@ -246,14 +301,27 @@ export const idlFactory = ({ IDL }) => {
     'poNumber' : IDL.Text,
   });
   const Payment = IDL.Record({
+    'deleted' : IDL.Bool,
     'paymentMethod' : IDL.Text,
     'storeNumber' : IDL.Text,
+    'deleteReason' : IDL.Opt(IDL.Text),
     'utrDetails' : IDL.Opt(IDL.Text),
     'paymentId' : IDL.Text,
     'timestamp' : Time,
     'companyName' : IDL.Text,
     'amount' : IDL.Float64,
     'chequeDetails' : IDL.Opt(IDL.Text),
+  });
+  const RiderAssignment = IDL.Record({
+    'orderId' : IDL.Text,
+    'riderEmail' : IDL.Text,
+    'riderPhone' : IDL.Text,
+    'riderName' : IDL.Text,
+  });
+  const RiderProfile = IDL.Record({
+    'name' : IDL.Text,
+    'email' : IDL.Text,
+    'phone' : IDL.Text,
   });
   const SubUser = IDL.Record({
     'roleText' : IDL.Text,
@@ -277,6 +345,7 @@ export const idlFactory = ({ IDL }) => {
   });
   
   return IDL.Service({
+    'addCustomer' : IDL.Func([IDL.Text, Customer], [], []),
     'addPayment' : IDL.Func(
         [
           IDL.Text,
@@ -291,6 +360,11 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'adminLogin' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
+    'assignRider' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [],
+        [],
+      ),
     'changeAdminPassword' : IDL.Func([IDL.Text, IDL.Text], [], []),
     'changeSubUserPassword' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
     'createSubUser' : IDL.Func([IDL.Text, IDL.Text, UserRole], [], []),
@@ -300,7 +374,9 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'customerLogin' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
+    'deleteCustomer' : IDL.Func([IDL.Text, IDL.Text], [], []),
     'deleteOrder' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
+    'deletePayment' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
     'editOrderItems' : IDL.Func(
         [IDL.Text, IDL.Text, IDL.Vec(OrderItem)],
         [],
@@ -321,10 +397,20 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'getActiveProducts' : IDL.Func([], [IDL.Vec(Product)], ['query']),
+    'getAdminRole' : IDL.Func([IDL.Text], [IDL.Text], []),
+    'getAdminStatus' : IDL.Func([IDL.Text], [IDL.Bool], []),
+    'getAllCustomerOrders' : IDL.Func([IDL.Text], [IDL.Vec(Order)], []),
+    'getAllCustomerPayments' : IDL.Func([IDL.Text], [IDL.Vec(Payment)], []),
     'getAllCustomers' : IDL.Func([IDL.Text], [IDL.Vec(Customer)], []),
     'getAllOrders' : IDL.Func([IDL.Text], [IDL.Vec(Order)], []),
     'getAllPayments' : IDL.Func([IDL.Text], [IDL.Vec(Payment)], []),
     'getAllProducts' : IDL.Func([IDL.Text], [IDL.Vec(Product)], ['query']),
+    'getAllRiderAssignments' : IDL.Func(
+        [IDL.Text],
+        [IDL.Vec(RiderAssignment)],
+        [],
+      ),
+    'getAllRiderProfiles' : IDL.Func([IDL.Text], [IDL.Vec(RiderProfile)], []),
     'getAllSubUsers' : IDL.Func([IDL.Text], [IDL.Vec(SubUser)], []),
     'getCompanyStatement' : IDL.Func(
         [IDL.Text, IDL.Int, IDL.Int],
@@ -356,12 +442,28 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'getOrdersByStore' : IDL.Func([IDL.Text, IDL.Text], [IDL.Vec(Order)], []),
+    'getOrdersForRider' : IDL.Func([IDL.Text, IDL.Text], [IDL.Vec(Order)], []),
     'getPaymentsByStore' : IDL.Func(
         [IDL.Text, IDL.Text],
         [IDL.Vec(Payment)],
         [],
       ),
+    'getRiderAssignment' : IDL.Func(
+        [IDL.Text, IDL.Text],
+        [IDL.Opt(RiderAssignment)],
+        [],
+      ),
+    'getRiderProfile' : IDL.Func(
+        [IDL.Text, IDL.Text],
+        [IDL.Opt(RiderProfile)],
+        [],
+      ),
     'getWebhookUrl' : IDL.Func([IDL.Text], [IDL.Text], []),
+    'markOrderDeliveredWithSignature' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text],
+        [],
+        [],
+      ),
     'placeOrder' : IDL.Func(
         [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Vec(OrderItem)],
         [IDL.Text],
@@ -387,6 +489,11 @@ export const idlFactory = ({ IDL }) => {
         [],
         [],
       ),
+    'saveRiderProfile' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [],
+        [],
+      ),
     'setWebhookUrl' : IDL.Func([IDL.Text, IDL.Text], [], []),
     'subUserLogin' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
     'subUserLoginV2' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
@@ -394,6 +501,7 @@ export const idlFactory = ({ IDL }) => {
     'toggleSubUser' : IDL.Func([IDL.Text, IDL.Text], [], []),
     'updateCustomer' : IDL.Func([IDL.Text, IDL.Text, Customer], [], []),
     'updateOrderStatus' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
+    'updateOrderStatusRider' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
     'updateProductRate' : IDL.Func([IDL.Text, IDL.Nat, IDL.Float64], [], []),
   });
 };

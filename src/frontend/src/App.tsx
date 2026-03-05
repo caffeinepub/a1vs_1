@@ -24,6 +24,8 @@ import CustomerStatement from "./pages/customer/CustomerStatement";
 import OrderConfirmation from "./pages/customer/OrderConfirmation";
 import OrderPage from "./pages/customer/OrderPage";
 import StoreSelectorPage from "./pages/customer/StoreSelectorPage";
+import RiderDashboard from "./pages/rider/RiderDashboard";
+import RiderLayout from "./pages/rider/RiderLayout";
 
 // Root route
 const rootRoute = createRootRoute({
@@ -164,6 +166,23 @@ const adminLoginRoute = createRoute({
   component: AdminLogin,
 });
 
+// Rider routes (protected)
+const riderLayoutRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/rider",
+  beforeLoad: () => {
+    const token = localStorage.getItem("a1vs_rider_token");
+    if (!token) throw redirect({ to: "/admin/login" });
+  },
+  component: RiderLayout,
+});
+
+const riderDashboardRoute = createRoute({
+  getParentRoute: () => riderLayoutRoute,
+  path: "/",
+  component: RiderDashboard,
+});
+
 const routeTree = rootRoute.addChildren([
   customerIndexRoute,
   orderRoute,
@@ -184,6 +203,7 @@ const routeTree = rootRoute.addChildren([
     adminAccountsRoute,
     adminProfileRoute,
   ]),
+  riderLayoutRoute.addChildren([riderDashboardRoute]),
 ]);
 
 const router = createRouter({ routeTree });

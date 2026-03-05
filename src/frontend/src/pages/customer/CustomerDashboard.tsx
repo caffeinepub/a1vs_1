@@ -12,13 +12,32 @@ import {
   Clock,
   FileBarChart,
   Package,
+  Phone,
   ShoppingBag,
   TrendingUp,
   Truck,
+  User,
   Wallet,
 } from "lucide-react";
 import type { Order, StatementEntry } from "../../backend.d";
 import { useActor } from "../../hooks/useActor";
+
+interface RiderAssignment {
+  riderEmail: string;
+  riderName: string;
+  riderPhone: string;
+}
+
+function getRiderAssignment(orderId: string): RiderAssignment | null {
+  try {
+    const all = JSON.parse(
+      localStorage.getItem("a1vs_rider_assignments") ?? "{}",
+    );
+    return all[orderId] ?? null;
+  } catch {
+    return null;
+  }
+}
 
 function formatDate(timestamp: bigint) {
   const ms = Number(timestamp) / 1_000_000;
@@ -55,9 +74,20 @@ function getStepIndex(status: string): number {
 
 function OrderTracker({ order }: { order: Order }) {
   const currentStep = getStepIndex(order.status);
+  const riderAssignment = getRiderAssignment(order.orderId);
+  const showRider =
+    (order.status === "on_the_way" || order.status === "delivered") &&
+    riderAssignment;
 
   return (
-    <div className="bg-white rounded-xl border border-green-100 p-4 shadow-xs">
+    <div
+      className={cn(
+        "bg-white rounded-xl border p-4 shadow-xs transition-all",
+        order.status === "delivered"
+          ? "border-green-200 bg-green-50/30"
+          : "border-green-100",
+      )}
+    >
       <div className="flex items-start justify-between mb-3">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -137,6 +167,30 @@ function OrderTracker({ order }: { order: Order }) {
           );
         })}
       </div>
+
+      {/* Rider info when on the way or delivered */}
+      {showRider && (
+        <div className="mt-3 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2.5 flex items-center gap-3">
+          <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
+            <User className="w-3.5 h-3.5 text-indigo-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-indigo-800">
+              {riderAssignment.riderName}
+            </p>
+            <p className="text-[10px] text-indigo-500">Your delivery rider</p>
+          </div>
+          {riderAssignment.riderPhone && (
+            <a
+              href={`tel:${riderAssignment.riderPhone}`}
+              className="flex items-center gap-1.5 bg-indigo-600 text-white rounded-full px-3 py-1.5 text-xs font-medium hover:bg-indigo-700 transition-colors shrink-0"
+            >
+              <Phone className="w-3 h-3" />
+              Call Rider
+            </a>
+          )}
+        </div>
+      )}
     </div>
   );
 }

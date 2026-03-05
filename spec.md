@@ -1,49 +1,74 @@
-# A1VS - Aone Vegetables & Supplier
+# A1VS
 
 ## Current State
-- Admin portal with sidebar navigation: Dashboard, Products, Customers, Orders/PO, Accounts, Users, Settings, Profile
-- Customer portal is a simple multi-page app (login → order → orders history → statement)
-- Customer statement page exists and calls `actor.getMyStatement(token, from, to)` but throws "access denied" errors
-- Admin Customers page shows a read-only table of customers with only upload/download template
-- PDF download button exists on CustomerStatement but `generateStatementPDF` utility is already in place
-- Customer portal lacks a proper dashboard/home layout after login
+
+Full-stack vegetable ordering platform with Admin Portal, Customer Portal, and Rider Portal. Backend uses Motoko with orders, products, customers, payments, sub-users, rider assignments, and session management. Frontend uses React + TypeScript + Tailwind + shadcn/ui.
+
+Existing features: product/customer management, order placement with COD/Pay Later, PO-to-invoice workflow, admin order deletion with note, PDF invoice/statement generation, customer statement, company statement, payment feed with edit, sub-user roles (admin/manager/accounts/rider), rider assignment and portal, rider delivery status updates, customer signature on delivery.
 
 ## Requested Changes (Diff)
 
 ### Add
-- Customer Portal: Full dashboard layout after login (mirroring admin sidebar/layout style) with:
-  - Sidebar or bottom nav with sections: Dashboard, My Orders, Place New Order, My Statement
-  - Dashboard home page showing: recent order status cards with order tracking roadmap (Order Placed → Accepted → On the Way → Delivered), quick action buttons
-  - Slider/cards for COD orders vs Pay Later orders overview
-  - My Orders page (already exists, move there)
-  - My Statement page (already exists, move there)
-  - Place New Order navigates to /order
-- Admin Customers page: Edit functionality - inline edit or edit modal for each customer row (all fields: Store Number, Name, Phone, Company Name, Address, GST Number, Email, Password). Save updates using `replaceCustomers` after modifying the list.
+
+1. **Rider: PO/order item details in rider dashboard** - Each active order card must show the full product list (item name, qty, unit, rate) in a collapsible section so the rider knows what they're delivering.
+
+2. **Rider: Browser/phone Web Notification popup** - On new order assignment, trigger `Notification` API popup (not just toast). Request permission on login. Poll every 15s; when new orders appear, fire both a `new Notification(...)` and the existing toast+sound. This gives a system-level popup on mobile browsers.
+
+3. **Rider: Google Maps navigate button** - On each active order card, add a "Navigate" button that opens `https://maps.google.com/?q=<encoded address>` in a new tab. No API key needed.
+
+4. **Rider/Invoice: Customer signature embedded in invoice PDF** - The signature captured at delivery is currently saved in component state only. It needs to be persisted into the backend (stored as a text field `deliverySignature` on the Order type). When generating the invoice PDF, if a signature data URL exists on the order, render it as an image in the PDF below the items table. The signature must appear in invoices shown to admin, customer, and rider.
+
+5. **Invoice header fix: PO → Invoice on delivery** - Currently the document header shows "PO" even after delivery in some views. Fix: wherever an order with `status === "delivered"` AND `invoiceNumber` is displayed, always show "INVOICE" + invoice number. In the Orders list (admin), the row badge/label must change from "PO" to "Invoice" once delivered. In the rider history tab, show "INV#" if available. In the customer My Orders view, delivered orders must be labeled "Invoice" not "PO".
+
+6. **Admin Accounts > Payment Feed: Delete payment** - Add a Delete button (admin-only, shown only when `a1vs_admin_token` is set) on each payment entry in the Recent Payments list. Clicking opens a confirmation dialog with a mandatory reason/comment text area. On confirm, calls a new backend API `deletePayment(token, paymentId, reason)` which soft-deletes the payment (sets a `deleted: Bool` and `deleteReason: Text` field). Deleted payments stay visible in the list with a red "Deleted" badge and the reason shown. They must be excluded from statement calculations (balance totals).
 
 ### Modify
-- Fix "access denied" error on Customer Statement: The `getMyStatement` call is correct. The issue is likely the token stored as `a1vs_customer_token` vs `a1vs_admin_token`. Ensure the customer token is being passed correctly and that the backend call uses the right localStorage key. Add better error handling and display a clear error message.
-- Customer Statement PDF: Already has a Download PDF button, but make sure it's always visible after loading (currently conditional on entries.length > 0, which is correct). Verify `generateStatementPDF` is working properly.
-- Customer portal routing: After login (from StoreSelectorPage), redirect to `/customer/dashboard` instead of `/order`. The StoreSelectorPage should show the navigation cards pointing to the new dashboard, orders, statement sections.
+
+- **Order type in backend**: Add `deliverySignature: ?Text` field to store the base64 PNG of the customer's signature.
+- **Payment type in backend**: Add `deleted: Bool` and `deleteReason: ?Text` fields for soft-delete.
+- **backend API `markDelivered` / `updateOrderStatusRider`**: When marking delivered, also accept and store the `deliverySignature` data URL. Add new `markOrderDeliveredWithSignature(token, orderId, signatureData)` endpoint that sets status to "delivered", generates invoice number, and saves the signature.
+- **Statement calculations** (both `getCustomerStatement` and `getCompanyStatement`): Filter out payments where `deleted == true`.
+- **`getMyStatement`**: Same filter for deleted payments.
+- **Rider `ActiveOrderCard`**: Add collapsible product list section; add Google Maps navigate button.
+- **Admin `Orders.tsx`**: Fix all PO/Invoice label logic to use `invoiceNumber` properly.
+- **Customer My Orders page**: Fix "PO" → "Invoice" label for delivered orders.
+- **PDF invoice**: Add signature image section if `order.deliverySignature` is present.
+- **Rider delivery confirm**: Call `markOrderDeliveredWithSignature` instead of `updateOrderStatusRider` to persist the signature.
+- **`Accounts.tsx` PaymentFeedTab**: Add Delete button + dialog to each payment row; exclude deleted payments from display totals.
 
 ### Remove
-- Nothing to remove
+
+- Nothing removed.
 
 ## Implementation Plan
-1. Create a new `CustomerLayout.tsx` with a sidebar (desktop) + bottom navigation (mobile) similar to AdminLayout, with nav items: Dashboard, Place New Order, My Orders, My Statement, Logout
-2. Create `CustomerDashboard.tsx` page showing:
-   - Welcome card with store info
-   - Recent orders (last 5) with status tracking roadmap visual (stepper: Placed → Accepted → On the Way → Delivered)
-   - Order summary cards: COD orders count/total vs Pay Later orders count/total
-   - Quick action buttons: Place New Order, View All Orders, View Statement
-3. Create `/customer/dashboard` route in App.tsx, protect it with customer token check
-4. Update `StoreSelectorPage.tsx`: after login, redirect to `/customer/dashboard`; if already logged in, show nav to dashboard
-5. Update `Customers.tsx` admin page: Add an Edit button per row that opens an inline edit form or modal. On save, update the customer in the local list and call `replaceCustomers(token, updatedList)`. Fields: Store Number, Name, Phone, Company Name, Address, GST Number, Email, Password.
-6. Fix CustomerStatement access denied: Ensure token is read from `a1vs_customer_token` (it already is). Add try/catch with toast.error showing the actual message. Also check that actor is ready before calling.
-7. Wrap CustomerOrders, CustomerStatement, and new CustomerDashboard inside CustomerLayout
 
-## UX Notes
-- Customer layout should use light colors (white sidebar, green accents) matching the admin portal style
-- The order tracking roadmap should be a horizontal stepper showing current status highlighted
-- COD vs Pay Later should be shown as two summary cards with counts and totals
-- Edit customer modal in admin should be a dialog with all fields pre-filled, validation before save
-- PDF download button for statement should be clearly labeled "Download PDF" and always shown after loading entries
+1. **Backend (Motoko)**:
+   - Add `deliverySignature: ?Text` to `Order` type and all Order construction/update sites.
+   - Add `deleted: Bool` and `deleteReason: ?Text` to `Payment` type and all Payment construction sites (default `deleted = false`, `deleteReason = null`).
+   - Add `deletePayment(token, paymentId, reason)` API: admin-only, soft-deletes payment.
+   - Add `markOrderDeliveredWithSignature(token, orderId, signatureData)` API: sets status="delivered", sets invoiceNumber = "INV-" + orderId, stores signature.
+   - Filter `deleted == true` payments from all statement queries.
+
+2. **Frontend - Rider Dashboard**:
+   - Add collapsible product list panel to each `ActiveOrderCard`.
+   - Add "Navigate" button that opens Google Maps with encoded address.
+   - Call `markOrderDeliveredWithSignature` (passing signature data) instead of `updateOrderStatusRider` on delivery.
+   - Ensure Web Notifications are requested on mount and fired when new orders arrive.
+
+3. **Frontend - Admin Orders**:
+   - Fix all PO/Invoice labels: if `order.invoiceNumber` exists, show "INVOICE / INV#"; else "PO / PO#".
+   - Invoice PDF download button always visible for delivered orders.
+   - Direct print button for invoice from admin.
+
+4. **Frontend - Customer My Orders**:
+   - Delivered orders labeled "Invoice" with invoice number.
+   - Invoice PDF available for delivered orders.
+
+5. **Frontend - Accounts Payment Feed**:
+   - Add Delete button (admin-only) on each payment entry.
+   - Delete dialog with mandatory reason text area.
+   - Deleted payments shown with "Deleted" badge + reason, but excluded from any totals.
+   - Call `deletePayment` backend API.
+
+6. **Frontend - PDF Utils**:
+   - If `order.deliverySignature` is present, render it as an image in the invoice PDF after the items table.

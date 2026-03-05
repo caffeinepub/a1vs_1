@@ -28,6 +28,7 @@ export interface Order {
   'deleteReason' : [] | [string],
   'orderId' : string,
   'invoiceNumber' : [] | [string],
+  'deliverySignature' : [] | [string],
   'totalAmount' : number,
   'address' : string,
   'timestamp' : Time,
@@ -43,8 +44,10 @@ export interface OrderItem {
   'productName' : string,
 }
 export interface Payment {
+  'deleted' : boolean,
   'paymentMethod' : string,
   'storeNumber' : string,
+  'deleteReason' : [] | [string],
   'utrDetails' : [] | [string],
   'paymentId' : string,
   'timestamp' : Time,
@@ -63,6 +66,17 @@ export interface ProductInput {
   'name' : string,
   'rate' : number,
   'unit' : string,
+}
+export interface RiderAssignment {
+  'orderId' : string,
+  'riderEmail' : string,
+  'riderPhone' : string,
+  'riderName' : string,
+}
+export interface RiderProfile {
+  'name' : string,
+  'email' : string,
+  'phone' : string,
 }
 export interface StatementEntry {
   'entryDate' : Time,
@@ -84,11 +98,16 @@ export type UserRole = { 'manager' : null } |
   { 'admin' : null } |
   { 'accounts' : null };
 export interface _SERVICE {
+  'addCustomer' : ActorMethod<[string, Customer], undefined>,
   'addPayment' : ActorMethod<
     [string, string, string, number, string, [] | [string], [] | [string]],
     undefined
   >,
   'adminLogin' : ActorMethod<[string, string], string>,
+  'assignRider' : ActorMethod<
+    [string, string, string, string, string],
+    undefined
+  >,
   'changeAdminPassword' : ActorMethod<[string, string], undefined>,
   'changeSubUserPassword' : ActorMethod<[string, string, string], undefined>,
   'createSubUser' : ActorMethod<[string, string, UserRole], undefined>,
@@ -97,7 +116,9 @@ export interface _SERVICE {
     undefined
   >,
   'customerLogin' : ActorMethod<[string, string], string>,
+  'deleteCustomer' : ActorMethod<[string, string], undefined>,
   'deleteOrder' : ActorMethod<[string, string, string], undefined>,
+  'deletePayment' : ActorMethod<[string, string, string], undefined>,
   'editOrderItems' : ActorMethod<[string, string, Array<OrderItem>], undefined>,
   'editPayment' : ActorMethod<
     [
@@ -113,10 +134,16 @@ export interface _SERVICE {
     undefined
   >,
   'getActiveProducts' : ActorMethod<[], Array<Product>>,
+  'getAdminRole' : ActorMethod<[string], string>,
+  'getAdminStatus' : ActorMethod<[string], boolean>,
+  'getAllCustomerOrders' : ActorMethod<[string], Array<Order>>,
+  'getAllCustomerPayments' : ActorMethod<[string], Array<Payment>>,
   'getAllCustomers' : ActorMethod<[string], Array<Customer>>,
   'getAllOrders' : ActorMethod<[string], Array<Order>>,
   'getAllPayments' : ActorMethod<[string], Array<Payment>>,
   'getAllProducts' : ActorMethod<[string], Array<Product>>,
+  'getAllRiderAssignments' : ActorMethod<[string], Array<RiderAssignment>>,
+  'getAllRiderProfiles' : ActorMethod<[string], Array<RiderProfile>>,
   'getAllSubUsers' : ActorMethod<[string], Array<SubUser>>,
   'getCompanyStatement' : ActorMethod<
     [string, bigint, bigint],
@@ -142,8 +169,15 @@ export interface _SERVICE {
     Array<StatementEntry>
   >,
   'getOrdersByStore' : ActorMethod<[string, string], Array<Order>>,
+  'getOrdersForRider' : ActorMethod<[string, string], Array<Order>>,
   'getPaymentsByStore' : ActorMethod<[string, string], Array<Payment>>,
+  'getRiderAssignment' : ActorMethod<[string, string], [] | [RiderAssignment]>,
+  'getRiderProfile' : ActorMethod<[string, string], [] | [RiderProfile]>,
   'getWebhookUrl' : ActorMethod<[string], string>,
+  'markOrderDeliveredWithSignature' : ActorMethod<
+    [string, string, string],
+    undefined
+  >,
   'placeOrder' : ActorMethod<
     [string, string, string, string, Array<OrderItem>],
     string
@@ -158,6 +192,7 @@ export interface _SERVICE {
     [string, Array<ProductInput>],
     undefined
   >,
+  'saveRiderProfile' : ActorMethod<[string, string, string, string], undefined>,
   'setWebhookUrl' : ActorMethod<[string, string], undefined>,
   'subUserLogin' : ActorMethod<[string, string], string>,
   'subUserLoginV2' : ActorMethod<[string, string], string>,
@@ -165,6 +200,7 @@ export interface _SERVICE {
   'toggleSubUser' : ActorMethod<[string, string], undefined>,
   'updateCustomer' : ActorMethod<[string, string, Customer], undefined>,
   'updateOrderStatus' : ActorMethod<[string, string, string], undefined>,
+  'updateOrderStatusRider' : ActorMethod<[string, string, string], undefined>,
   'updateProductRate' : ActorMethod<[string, bigint, number], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;

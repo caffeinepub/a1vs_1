@@ -36,6 +36,7 @@ import {
   FileText,
   Loader2,
   Search,
+  Trash2,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -585,6 +586,11 @@ function PaymentFeedTab() {
   const [editChequeDetails, setEditChequeDetails] = useState("");
   const [editUtrDetails, setEditUtrDetails] = useState("");
 
+  // Delete payment state (admin only)
+  const [deletingPayment, setDeletingPayment] = useState<Payment | null>(null);
+  const [deletePaymentReason, setDeletePaymentReason] = useState("");
+  const isAdminUser = !!localStorage.getItem("a1vs_admin_token");
+
   const { data: customers = [] } = useQuery<Customer[]>({
     queryKey: ["all-customers", token],
     queryFn: () => actor!.getAllCustomers(token),
@@ -657,6 +663,29 @@ function PaymentFeedTab() {
     onError: (err) => {
       toast.error(
         err instanceof Error ? err.message : "Failed to update payment",
+      );
+    },
+  });
+
+  const deletePaymentMutation = useMutation({
+    mutationFn: () => {
+      if (!deletingPayment) throw new Error("No payment selected");
+      if (!deletePaymentReason.trim()) throw new Error("Reason is required");
+      return actor!.deletePayment(
+        token,
+        deletingPayment.paymentId,
+        deletePaymentReason.trim(),
+      );
+    },
+    onSuccess: () => {
+      toast.success("Payment deleted");
+      setDeletingPayment(null);
+      setDeletePaymentReason("");
+      qc.invalidateQueries({ queryKey: ["all-payments"] });
+    },
+    onError: (err) => {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to delete payment",
       );
     },
   });
@@ -815,32 +844,62 @@ function PaymentFeedTab() {
                 {sortedPayments.map((payment) => (
                   <div
                     key={payment.paymentId}
-                    className="border border-border rounded-lg p-3"
+                    className={`border rounded-lg p-3 ${payment.deleted ? "border-red-100 bg-red-50/30 opacity-75" : "border-border"}`}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <p className="font-semibold text-sm">
-                        {payment.companyName}
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <p className="font-bold text-success">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <p className="font-semibold text-sm truncate">
+                          {payment.companyName}
+                        </p>
+                        {payment.deleted && (
+                          <Badge className="bg-red-100 text-red-700 border-0 text-[10px] shrink-0">
+                            Deleted
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <p
+                          className={`font-bold ${payment.deleted ? "text-muted-foreground line-through" : "text-success"}`}
+                        >
                           ₹{payment.amount.toFixed(2)}
                         </p>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 w-7 p-0"
-                          onClick={() => {
-                            setEditingPayment(payment);
-                            setEditStore(payment.storeNumber);
-                            setEditCompanyName(payment.companyName);
-                            setEditAmount(payment.amount.toString());
-                            setEditPaymentMethod(payment.paymentMethod);
-                            setEditChequeDetails(payment.chequeDetails ?? "");
-                            setEditUtrDetails(payment.utrDetails ?? "");
-                          }}
-                        >
-                          <Edit2 className="w-3 h-3" />
-                        </Button>
+                        {!payment.deleted && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 w-7 p-0"
+                              data-ocid="accounts.payment.edit_button"
+                              onClick={() => {
+                                setEditingPayment(payment);
+                                setEditStore(payment.storeNumber);
+                                setEditCompanyName(payment.companyName);
+                                setEditAmount(payment.amount.toString());
+                                setEditPaymentMethod(payment.paymentMethod);
+                                setEditChequeDetails(
+                                  payment.chequeDetails ?? "",
+                                );
+                                setEditUtrDetails(payment.utrDetails ?? "");
+                              }}
+                            >
+                              <Edit2 className="w-3 h-3" />
+                            </Button>
+                            {isAdminUser && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 w-7 p-0 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                data-ocid="accounts.payment.delete_button"
+                                onClick={() => {
+                                  setDeletingPayment(payment);
+                                  setDeletePaymentReason("");
+                                }}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            )}
+                          </>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -860,6 +919,11 @@ function PaymentFeedTab() {
                         UTR: {payment.utrDetails}
                       </p>
                     )}
+                    {payment.deleted && payment.deleteReason && (
+                      <p className="text-xs text-red-600 mt-1 font-medium">
+                        Reason: {payment.deleteReason}
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -867,6 +931,87 @@ function PaymentFeedTab() {
           </CardContent>
         </Card>
       </div>
+      {/* Delete Payment Dialog */}
+      <Dialog
+        open={!!deletingPayment}
+        onOpenChange={(open) => !open && setDeletingPayment(null)}
+      >
+        <DialogContent
+          className="max-w-md"
+          data-ocid="accounts.delete_payment.dialog"
+        >
+          <DialogHeader>
+            <DialogTitle className="font-heading flex items-center gap-2 text-red-600">
+              <Trash2 className="w-4 h-4" />
+              Delete Payment
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {deletingPayment && (
+              <div className="bg-red-50 rounded-lg px-3 py-2 border border-red-100">
+                <p className="text-sm font-semibold text-red-800">
+                  {deletingPayment.companyName}
+                </p>
+                <p className="text-xs text-red-600 mt-0.5">
+                  ₹{deletingPayment.amount.toFixed(2)} ·{" "}
+                  <span className="capitalize">
+                    {deletingPayment.paymentMethod}
+                  </span>{" "}
+                  · {formatDate(deletingPayment.timestamp)}
+                </p>
+              </div>
+            )}
+            <p className="text-sm text-muted-foreground">
+              This payment will be marked as deleted and excluded from balance
+              calculations. The record will remain visible with a "Deleted"
+              status and your reason shown.
+            </p>
+            <div className="space-y-2">
+              <Label
+                htmlFor="delete-payment-reason"
+                className="text-sm font-medium"
+              >
+                Reason for Deletion <span className="text-destructive">*</span>
+              </Label>
+              <Textarea
+                id="delete-payment-reason"
+                placeholder="Enter reason for deletion..."
+                value={deletePaymentReason}
+                onChange={(e) => setDeletePaymentReason(e.target.value)}
+                className="min-h-20 text-sm"
+                data-ocid="accounts.delete_payment.textarea"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setDeletingPayment(null)}
+              data-ocid="accounts.delete_payment.cancel_button"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={
+                deletePaymentReason.trim() === "" ||
+                deletePaymentMutation.isPending
+              }
+              onClick={() => deletePaymentMutation.mutate()}
+              className="gap-2"
+              data-ocid="accounts.delete_payment.confirm_button"
+            >
+              {deletePaymentMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Trash2 className="w-4 h-4" />
+              )}
+              Delete Payment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Edit Payment Dialog */}
       <Dialog
         open={!!editingPayment}

@@ -28,18 +28,37 @@ import {
   FileText,
   Loader2,
   PackageCheck,
+  Phone,
   Plus,
   Search,
   ShoppingCart,
   Trash2,
   Truck,
+  User,
+  UserCheck,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import type { Order, OrderItem } from "../../backend.d";
+import type {
+  Order,
+  OrderItem,
+  RiderAssignment,
+  RiderProfile,
+  SubUser,
+} from "../../backend.d";
 import type { Product } from "../../backend.d";
 import { useActor } from "../../hooks/useActor";
-import { generateInvoicePDF } from "../../utils/pdfUtils";
+import {
+  generateInvoicePDF,
+  generateInvoicePDFAndPrint,
+} from "../../utils/pdfUtils";
+
+// Rider assignment helpers -- all backed by the canister, not localStorage
+interface RiderAssignmentLocal {
+  riderEmail: string;
+  riderName: string;
+  riderPhone: string;
+}
 
 function formatDate(timestamp: bigint) {
   const ms = Number(timestamp) / 1_000_000;
@@ -97,6 +116,11 @@ export default function Orders() {
   const [deletingOrder, setDeletingOrder] = useState<Order | null>(null);
   const [deleteReason, setDeleteReason] = useState("");
 
+  // Rider assignment states
+  const [assignRiderOrder, setAssignRiderOrder] = useState<Order | null>(null);
+  const [selectedRiderEmail, setSelectedRiderEmail] = useState("");
+  const [isAssigning, setIsAssigning] = useState(false);
+
   const { data: orders = [], isLoading } = useQuery<Order[]>({
     queryKey: ["admin-orders", token],
     queryFn: () => actor!.getAllOrders(token),
@@ -108,6 +132,41 @@ export default function Orders() {
     queryFn: () => actor!.getActiveProducts(),
     enabled: !!actor && !isFetching,
   });
+
+  const { data: allSubUsers = [] } = useReactQuery<SubUser[]>({
+    queryKey: ["sub-users", token],
+    queryFn: () => actor!.getAllSubUsers(token),
+    enabled: !!actor && !isFetching && !!token,
+  });
+
+  const { data: riderAssignmentsArr = [] } = useReactQuery<RiderAssignment[]>({
+    queryKey: ["rider-assignments", token],
+    queryFn: () => actor!.getAllRiderAssignments(token),
+    enabled: !!actor && !isFetching && !!token,
+    refetchInterval: 15_000,
+  });
+
+  const { data: riderProfilesArr = [] } = useReactQuery<RiderProfile[]>({
+    queryKey: ["rider-profiles", token],
+    queryFn: () => actor!.getAllRiderProfiles(token),
+    enabled: !!actor && !isFetching && !!token,
+  });
+
+  const riders = allSubUsers.filter((u) => u.roleText === "rider" && u.active);
+
+  // Convert arrays to lookup maps for quick access
+  const riderAssignments: Record<string, RiderAssignmentLocal> = {};
+  for (const ra of riderAssignmentsArr) {
+    riderAssignments[ra.orderId] = {
+      riderEmail: ra.riderEmail,
+      riderName: ra.riderName,
+      riderPhone: ra.riderPhone,
+    };
+  }
+  const riderProfiles: Record<string, { name: string; phone: string }> = {};
+  for (const rp of riderProfilesArr) {
+    riderProfiles[rp.email] = { name: rp.name, phone: rp.phone };
+  }
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({
@@ -246,18 +305,17 @@ export default function Orders() {
 
   const getNextStatusButton = (order: Order) => {
     const s = order.status.toLowerCase();
+    const assignment = riderAssignments[order.orderId];
     if (s === "pending") {
       return (
         <Button
           size="sm"
           className="gap-1.5 h-8 text-xs bg-blue-600 hover:bg-blue-700"
           disabled={updatingId === order.orderId}
-          onClick={() =>
-            updateStatusMutation.mutate({
-              orderId: order.orderId,
-              status: "accepted",
-            })
-          }
+          onClick={() => {
+            setAssignRiderOrder(order);
+            setSelectedRiderEmail("");
+          }}
         >
           {updatingId === order.orderId ? (
             <Loader2 className="w-3 h-3 animate-spin" />
@@ -270,46 +328,104 @@ export default function Orders() {
     }
     if (s === "accepted") {
       return (
-        <Button
-          size="sm"
-          className="gap-1.5 h-8 text-xs bg-orange-500 hover:bg-orange-600"
-          disabled={updatingId === order.orderId}
-          onClick={() =>
-            updateStatusMutation.mutate({
-              orderId: order.orderId,
-              status: "on_the_way",
-            })
-          }
-        >
-          {updatingId === order.orderId ? (
-            <Loader2 className="w-3 h-3 animate-spin" />
-          ) : (
-            <Truck className="w-3 h-3" />
+        <div className="flex items-center gap-2 flex-wrap">
+          {assignment && (
+            <>
+              <Badge className="bg-indigo-100 text-indigo-700 border-0 gap-1 text-xs">
+                <Truck className="w-3 h-3" />
+                {assignment.riderName}
+              </Badge>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 text-xs gap-1 text-indigo-600 hover:bg-indigo-50"
+                onClick={() => {
+                  setAssignRiderOrder(order);
+                  setSelectedRiderEmail(assignment.riderEmail);
+                }}
+              >
+                <UserCheck className="w-3 h-3" />
+                Re-assign
+              </Button>
+            </>
           )}
-          On the Way
-        </Button>
+          {!assignment && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs gap-1 text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+              onClick={() => {
+                setAssignRiderOrder(order);
+                setSelectedRiderEmail("");
+              }}
+            >
+              <User className="w-3 h-3" />
+              Assign Rider
+            </Button>
+          )}
+          <Button
+            size="sm"
+            className="gap-1.5 h-8 text-xs bg-orange-500 hover:bg-orange-600"
+            disabled={updatingId === order.orderId}
+            onClick={() =>
+              updateStatusMutation.mutate({
+                orderId: order.orderId,
+                status: "on_the_way",
+              })
+            }
+          >
+            {updatingId === order.orderId ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <Truck className="w-3 h-3" />
+            )}
+            On the Way
+          </Button>
+        </div>
       );
     }
     if (s === "on_the_way") {
       return (
-        <Button
-          size="sm"
-          className="gap-1.5 h-8 text-xs bg-success hover:bg-success/90"
-          disabled={updatingId === order.orderId}
-          onClick={() =>
-            updateStatusMutation.mutate({
-              orderId: order.orderId,
-              status: "delivered",
-            })
-          }
-        >
-          {updatingId === order.orderId ? (
-            <Loader2 className="w-3 h-3 animate-spin" />
-          ) : (
-            <PackageCheck className="w-3 h-3" />
+        <div className="flex items-center gap-2 flex-wrap">
+          {assignment && (
+            <>
+              <Badge className="bg-indigo-100 text-indigo-700 border-0 gap-1 text-xs">
+                <Truck className="w-3 h-3" />
+                {assignment.riderName}
+              </Badge>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 text-xs gap-1 text-indigo-600 hover:bg-indigo-50"
+                onClick={() => {
+                  setAssignRiderOrder(order);
+                  setSelectedRiderEmail(assignment.riderEmail);
+                }}
+              >
+                <UserCheck className="w-3 h-3" />
+                Re-assign
+              </Button>
+            </>
           )}
-          Mark Delivered
-        </Button>
+          <Button
+            size="sm"
+            className="gap-1.5 h-8 text-xs bg-success hover:bg-success/90"
+            disabled={updatingId === order.orderId}
+            onClick={() =>
+              updateStatusMutation.mutate({
+                orderId: order.orderId,
+                status: "delivered",
+              })
+            }
+          >
+            {updatingId === order.orderId ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <PackageCheck className="w-3 h-3" />
+            )}
+            Mark Delivered
+          </Button>
+        </div>
       );
     }
     if (s === "delivered") {
@@ -397,7 +513,9 @@ export default function Orders() {
                         variant="outline"
                         className="font-mono font-bold text-xs"
                       >
-                        PO# {order.poNumber}
+                        {order.invoiceNumber
+                          ? `INV# ${order.invoiceNumber}`
+                          : `PO# ${order.poNumber}`}
                       </Badge>
                       <StatusBadge status={order.status} />
                       {order.status !== "deleted" && (
@@ -506,9 +624,20 @@ export default function Orders() {
                         onClick={() => generateInvoicePDF(order)}
                       >
                         <FileText className="w-3 h-3" />
-                        {order.status === "delivered"
+                        {order.status === "delivered" && order.invoiceNumber
                           ? "Invoice PDF"
                           : "PO PDF"}
+                      </Button>
+                    )}
+                    {order.status === "delivered" && order.invoiceNumber && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="gap-1.5 h-8 text-xs text-muted-foreground hover:text-foreground"
+                        onClick={() => generateInvoicePDFAndPrint(order)}
+                      >
+                        <FileText className="w-3 h-3" />
+                        Print Invoice
                       </Button>
                     )}
                   </div>
@@ -705,6 +834,172 @@ export default function Orders() {
               Save Changes
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign Rider Dialog */}
+      <Dialog
+        open={!!assignRiderOrder}
+        onOpenChange={(open) => !open && setAssignRiderOrder(null)}
+      >
+        <DialogContent
+          className="max-w-sm"
+          data-ocid="admin.assign_rider.dialog"
+        >
+          <DialogHeader>
+            <DialogTitle className="font-heading flex items-center gap-2 text-indigo-900">
+              <Truck className="w-5 h-5 text-indigo-600" />
+              Assign Rider & Accept Order
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-1">
+            <div className="bg-indigo-50 rounded-lg px-3 py-2">
+              <p className="text-xs text-indigo-700">
+                <span className="font-semibold">
+                  PO# {assignRiderOrder?.poNumber}
+                </span>
+                {" · "}
+                {assignRiderOrder?.companyName}
+              </p>
+              <p className="text-xs text-indigo-500 mt-0.5 truncate">
+                {assignRiderOrder?.address}
+              </p>
+            </div>
+            {riders.length === 0 ? (
+              <div className="text-center py-4">
+                <Truck className="w-8 h-8 mx-auto mb-2 text-indigo-200" />
+                <p className="text-sm font-medium text-indigo-700">
+                  No riders available
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Go to Users to create a Rider account first.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label className="text-xs font-medium">Select Rider</Label>
+                <Select
+                  value={selectedRiderEmail}
+                  onValueChange={setSelectedRiderEmail}
+                  data-ocid="admin.assign_rider.select"
+                >
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Choose a rider..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {riders.map((rider) => {
+                      const profile = riderProfiles[rider.email];
+                      return (
+                        <SelectItem key={rider.email} value={rider.email}>
+                          <div className="flex items-center gap-2">
+                            <Truck className="w-3.5 h-3.5 text-indigo-500" />
+                            <span>{profile?.name ?? rider.email}</span>
+                            {profile?.phone && (
+                              <span className="text-xs text-muted-foreground font-mono">
+                                <Phone className="w-2.5 h-2.5 inline mr-0.5" />
+                                {profile.phone}
+                              </span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setAssignRiderOrder(null)}
+              data-ocid="admin.assign_rider.skip_button"
+              disabled={isAssigning}
+            >
+              Cancel
+            </Button>
+            {riders.length > 0 && (
+              <Button
+                className="gap-2 bg-indigo-600 hover:bg-indigo-700"
+                disabled={!selectedRiderEmail || isAssigning}
+                data-ocid="admin.assign_rider.confirm_button"
+                onClick={async () => {
+                  if (!assignRiderOrder || !selectedRiderEmail) return;
+                  const profile = riderProfiles[selectedRiderEmail];
+                  const riderName = profile?.name ?? selectedRiderEmail;
+                  const riderPhone = profile?.phone ?? "";
+                  setIsAssigning(true);
+                  try {
+                    // Accept the order first
+                    await actor!.updateOrderStatus(
+                      token,
+                      assignRiderOrder.orderId,
+                      "accepted",
+                    );
+                    // Save rider assignment to backend (not localStorage)
+                    await actor!.assignRider(
+                      token,
+                      assignRiderOrder.orderId,
+                      selectedRiderEmail,
+                      riderName,
+                      riderPhone,
+                    );
+                    qc.invalidateQueries({ queryKey: ["admin-orders"] });
+                    qc.invalidateQueries({ queryKey: ["rider-assignments"] });
+                    toast.success(
+                      `Order accepted and assigned to ${riderName}`,
+                    );
+                    setAssignRiderOrder(null);
+                    setSelectedRiderEmail("");
+                  } catch (err: unknown) {
+                    toast.error(
+                      err instanceof Error
+                        ? err.message
+                        : "Failed to accept order",
+                    );
+                  } finally {
+                    setIsAssigning(false);
+                  }
+                }}
+              >
+                {isAssigning ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Truck className="w-4 h-4" />
+                )}
+                Assign & Accept
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              className="gap-2"
+              disabled={isAssigning}
+              onClick={async () => {
+                if (!assignRiderOrder) return;
+                setIsAssigning(true);
+                try {
+                  await actor!.updateOrderStatus(
+                    token,
+                    assignRiderOrder.orderId,
+                    "accepted",
+                  );
+                  qc.invalidateQueries({ queryKey: ["admin-orders"] });
+                  toast.success("Order accepted without rider assignment");
+                  setAssignRiderOrder(null);
+                } catch (err: unknown) {
+                  toast.error(
+                    err instanceof Error
+                      ? err.message
+                      : "Failed to accept order",
+                  );
+                } finally {
+                  setIsAssigning(false);
+                }
+              }}
+            >
+              Accept Without Rider
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

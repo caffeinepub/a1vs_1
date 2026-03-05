@@ -9,9 +9,9 @@ import List "mo:core/List";
 import Nat "mo:core/Nat";
 import Timer "mo:core/Timer";
 import Float "mo:core/Float";
+import Migration "migration";
 
-
-
+(with migration = Migration.run)
 actor {
   //---------------------
   // Types & Constants
@@ -81,6 +81,7 @@ actor {
     poNumber : Text;
     gstNumber : ?Text;
     deleteReason : ?Text;
+    deliverySignature : ?Text;
   };
 
   type Payment = {
@@ -92,6 +93,8 @@ actor {
     chequeDetails : ?Text;
     utrDetails : ?Text;
     timestamp : Time.Time;
+    deleted : Bool;
+    deleteReason : ?Text;
   };
 
   public type UserRole = { #admin; #manager; #accounts };
@@ -130,6 +133,19 @@ actor {
     credit : Float;
   };
 
+  type RiderAssignment = {
+    orderId : Text;
+    riderEmail : Text;
+    riderName : Text;
+    riderPhone : Text;
+  };
+
+  type RiderProfile = {
+    email : Text;
+    name : Text;
+    phone : Text;
+  };
+
   //---------------------
   // State
   //---------------------
@@ -140,6 +156,9 @@ actor {
   let subUsers = Map.empty<Text, SubUser>();
   let payments = Map.empty<Text, Payment>();
   let sessions = Map.empty<Text, SessionToken>();
+
+  let riderAssignments = Map.empty<Text, RiderAssignment>();
+  let riderProfiles = Map.empty<Text, RiderProfile>();
 
   var productIdCounter = 1;
   var orderIdCounter = 1;
@@ -391,6 +410,7 @@ actor {
       paymentMethod = "cash_on_delivery";
       poNumber = orderId;
       deleteReason = null;
+      deliverySignature = null;
     };
 
     orders.add(orderId, order);
@@ -431,6 +451,7 @@ actor {
       poNumber = orderId;
       gstNumber;
       deleteReason = null;
+      deliverySignature = null;
     };
 
     orders.add(orderId, order);
@@ -441,7 +462,7 @@ actor {
   };
 
   public shared ({ caller }) func getAllOrders(token : Text) : async [Order] {
-    validateSession(token, ?#admin);
+    validateSession(token, null);
     orders.values().toArray();
   };
 
@@ -451,7 +472,7 @@ actor {
   };
 
   public shared ({ caller }) func updateOrderStatus(token : Text, orderId : Text, status : Text) : async () {
-    validateSession(token, ?#admin);
+    validateSession(token, null);
     switch (orders.get(orderId)) {
       case (null) { Runtime.trap("Order not found") };
       case (?order) {
@@ -469,6 +490,7 @@ actor {
           poNumber = order.poNumber;
           gstNumber = order.gstNumber;
           deleteReason = order.deleteReason;
+          deliverySignature = order.deliverySignature;
         };
         orders.add(orderId, updatedOrder);
       };
@@ -476,7 +498,7 @@ actor {
   };
 
   public shared ({ caller }) func editOrderItems(token : Text, orderId : Text, newItems : [OrderItem]) : async () {
-    validateSession(token, ?#admin);
+    validateSession(token, null);
 
     switch (orders.get(orderId)) {
       case (null) { Runtime.trap("Order not found") };
@@ -500,6 +522,7 @@ actor {
           poNumber = existingOrder.poNumber;
           gstNumber = existingOrder.gstNumber;
           deleteReason = existingOrder.deleteReason;
+          deliverySignature = existingOrder.deliverySignature;
         };
 
         orders.add(orderId, updatedOrder);
@@ -511,7 +534,7 @@ actor {
   // New Order Deletion API
   //---------------------
   public shared ({ caller }) func deleteOrder(token : Text, orderId : Text, reason : Text) : async () {
-    validateSession(token, ?#admin);
+    validateSession(token, null);
     switch (orders.get(orderId)) {
       case (null) { Runtime.trap("Order not found") };
       case (?order) {
@@ -529,6 +552,37 @@ actor {
           poNumber = order.poNumber;
           gstNumber = order.gstNumber;
           deleteReason = ?reason;
+          deliverySignature = order.deliverySignature;
+        };
+        orders.add(orderId, updatedOrder);
+      };
+    };
+  };
+
+  //---------------------
+  // New Mark Order Delivered With Signature API
+  //---------------------
+  public shared ({ caller }) func markOrderDeliveredWithSignature(token : Text, orderId : Text, signatureData : Text) : async () {
+    validateSession(token, null);
+
+    switch (orders.get(orderId)) {
+      case (null) { Runtime.trap("Order not found") };
+      case (?order) {
+        let updatedOrder : Order = {
+          orderId = order.orderId;
+          storeNumber = order.storeNumber;
+          companyName = order.companyName;
+          address = order.address;
+          items = order.items;
+          timestamp = order.timestamp;
+          status = "delivered";
+          totalAmount = order.totalAmount;
+          paymentMethod = order.paymentMethod;
+          poNumber = order.poNumber;
+          gstNumber = order.gstNumber;
+          deleteReason = order.deleteReason;
+          deliverySignature = ?signatureData;
+          invoiceNumber = ?("INV-" # orderId);
         };
         orders.add(orderId, updatedOrder);
       };
@@ -559,6 +613,8 @@ actor {
       chequeDetails;
       utrDetails;
       timestamp = Time.now();
+      deleted = false;
+      deleteReason = null;
     };
 
     payments.add(paymentId, payment);
@@ -582,7 +638,7 @@ actor {
 
     switch (payments.get(paymentId)) {
       case (null) { Runtime.trap("Payment not found") };
-      case (?_payment) {
+      case (?existingPayment) { // Use existing value for deleted and deleteReason
         let updatedPayment : Payment = {
           paymentId;
           storeNumber;
@@ -592,6 +648,8 @@ actor {
           chequeDetails;
           utrDetails;
           timestamp = Time.now();
+          deleted = existingPayment.deleted;
+          deleteReason = existingPayment.deleteReason;
         };
 
         payments.add(paymentId, updatedPayment);
@@ -601,19 +659,44 @@ actor {
 
   public shared ({ caller }) func getPaymentsByStore(token : Text, storeNumber : Text) : async [Payment] {
     validateSession(token, null);
-    payments.values().filter(func(payment) { payment.storeNumber == storeNumber }).toArray();
+    payments.values().filter(func(payment) { payment.storeNumber == storeNumber and not payment.deleted }).toArray();
   };
 
   public shared ({ caller }) func getAllPayments(token : Text) : async [Payment] {
     validateSession(token, null);
-    payments.values().toArray();
+    payments.values().filter(func(payment) { not payment.deleted }).toArray();
+  };
+
+  //---------------------
+  // New Delete Payment API
+  //---------------------
+  public shared ({ caller }) func deletePayment(token : Text, paymentId : Text, reason : Text) : async () {
+    validateSession(token, ?#admin);
+    switch (payments.get(paymentId)) {
+      case (null) { Runtime.trap("Payment not found") };
+      case (?payment) {
+        let updatedPayment : Payment = {
+          paymentId = payment.paymentId;
+          storeNumber = payment.storeNumber;
+          companyName = payment.companyName;
+          amount = payment.amount;
+          paymentMethod = payment.paymentMethod;
+          chequeDetails = payment.chequeDetails;
+          utrDetails = payment.utrDetails;
+          timestamp = payment.timestamp;
+          deleted = true;
+          deleteReason = ?reason;
+        };
+        payments.add(paymentId, updatedPayment);
+      };
+    };
   };
 
   //---------------------
   // Statement Generation
   //---------------------
   public shared ({ caller }) func getCustomerStatement(token : Text, storeNumber : Text, _fromTime : Int, _toTime : Int) : async [StatementEntry] {
-    validateSession(token, ?#admin);
+    validateSession(token, null);
     let entries = List.empty<StatementEntry>();
 
     for (order in orders.values()) {
@@ -633,7 +716,7 @@ actor {
     };
 
     for (payment in payments.values()) {
-      if (payment.storeNumber == storeNumber) {
+      if (payment.storeNumber == storeNumber and not payment.deleted) {
         entries.add(
           {
             entryDate = payment.timestamp;
@@ -671,17 +754,19 @@ actor {
     };
 
     for (payment in payments.values()) {
-      entries.add(
-        {
-          entryDate = payment.timestamp;
-          entryType = "payment";
-          referenceNumber = payment.paymentId;
-          companyName = payment.companyName;
-          storeNumber = payment.storeNumber;
-          debit = 0.0;
-          credit = payment.amount;
-        }
-      );
+      if (not payment.deleted) {
+        entries.add(
+          {
+            entryDate = payment.timestamp;
+            entryType = "payment";
+            referenceNumber = payment.paymentId;
+            companyName = payment.companyName;
+            storeNumber = payment.storeNumber;
+            debit = 0.0;
+            credit = payment.amount;
+          }
+        );
+      };
     };
 
     entries.toArray();
@@ -710,7 +795,7 @@ actor {
               };
             };
             for (payment in payments.values()) {
-              if (payment.storeNumber == storeNumber) {
+              if (payment.storeNumber == storeNumber and not payment.deleted) {
                 entries.add(
                   {
                     entryDate = payment.timestamp;
@@ -759,7 +844,23 @@ actor {
       case (null) { Runtime.trap("Invalid credentials") };
       case (?subUser) {
         if (subUser.password != password or not subUser.active) { Runtime.trap("Invalid credentials") };
-        generateToken();
+
+        let role : ?UserRole = switch (subUser.roleText) {
+          case ("storeManager") { ?#manager };
+          case ("accountTeam") { ?#accounts };
+          case ("purchaseManager") { ?#admin };
+          case (_) { ?#manager };
+        };
+
+        let token = generateToken();
+        let session : SessionToken = {
+          token;
+          role;
+          storeNumber = null;
+          expiry = Time.now() + (24 * 3600 * 1000000000);
+        };
+        sessions.add(token, session);
+        token;
       };
     };
   };
@@ -813,5 +914,164 @@ actor {
     validateSession(token, ?#admin);
     webhookUrl;
   };
-};
 
+  //---------------------
+  // New APIs: Customer Add/Delete
+  //---------------------
+  public shared ({ caller }) func addCustomer(token : Text, customer : Customer) : async () {
+    validateSession(token, ?#admin);
+    if (customers.containsKey(customer.storeNumber)) { Runtime.trap("Customer with store number already exists") };
+    customers.add(customer.storeNumber, customer);
+  };
+
+  public shared ({ caller }) func deleteCustomer(token : Text, storeNumber : Text) : async () {
+    validateSession(token, ?#admin);
+    if (customers.containsKey(storeNumber)) { customers.remove(storeNumber) };
+  };
+
+  //---------------------
+  // Fix for get all payments/orders API to allow all authenticated users
+  //---------------------
+  public shared ({ caller }) func getAllCustomerPayments(token : Text) : async [Payment] {
+    validateSession(token, null);
+    payments.values().filter(func(payment) { not payment.deleted }).toArray();
+  };
+
+  public shared ({ caller }) func getAllCustomerOrders(token : Text) : async [Order] {
+    validateSession(token, null);
+    orders.values().toArray();
+  };
+
+  //---------------------
+  // New API for Admin Role
+  //---------------------
+  public shared ({ caller }) func getAdminRole(token : Text) : async Text {
+    validateSession(token, ?#admin);
+    "admin";
+  };
+
+  //---------------------
+  // New API for Admin Status
+  //---------------------
+  public shared ({ caller }) func getAdminStatus(_token : Text) : async Bool {
+    true;
+  };
+
+  //---------------------
+  // Update Order Status for Rider
+  //---------------------
+  public shared ({ caller }) func updateOrderStatusRider(token : Text, orderId : Text, status : Text) : async () {
+    validateSession(token, null);
+
+    switch (orders.get(orderId)) {
+      case (null) { Runtime.trap("Order not found") };
+      case (?order) {
+        let updatedOrder : Order = {
+          orderId = order.orderId;
+          storeNumber = order.storeNumber;
+          companyName = order.companyName;
+          address = order.address;
+          items = order.items;
+          timestamp = order.timestamp;
+          status;
+          totalAmount = order.totalAmount;
+          invoiceNumber = order.invoiceNumber;
+          paymentMethod = order.paymentMethod;
+          poNumber = order.poNumber;
+          gstNumber = order.gstNumber;
+          deleteReason = order.deleteReason;
+          deliverySignature = order.deliverySignature;
+        };
+        orders.add(orderId, updatedOrder);
+      };
+    };
+  };
+
+  //---------------------
+  // Rider Management
+  //---------------------
+  public shared ({ caller }) func assignRider(
+    token : Text,
+    orderId : Text,
+    riderEmail : Text,
+    riderName : Text,
+    riderPhone : Text,
+  ) : async () {
+    validateSession(token, null);
+    let assignment : RiderAssignment = {
+      orderId;
+      riderEmail;
+      riderName;
+      riderPhone;
+    };
+
+    riderAssignments.add(orderId, assignment);
+
+    // Update/overwrite rider profile if name is not empty
+    if (riderName.size() > 0) {
+      let profile : RiderProfile = {
+        email = riderEmail;
+        name = riderName;
+        phone = riderPhone;
+      };
+      riderProfiles.add(riderEmail, profile);
+    };
+  };
+
+  public shared ({ caller }) func getRiderAssignment(token : Text, orderId : Text) : async ?RiderAssignment {
+    validateSession(token, null);
+    riderAssignments.get(orderId);
+  };
+
+  public shared ({ caller }) func getAllRiderAssignments(token : Text) : async [RiderAssignment] {
+    validateSession(token, null);
+    let assignmentsIter = riderAssignments.values();
+    assignmentsIter.toArray();
+  };
+
+  public shared ({ caller }) func getOrdersForRider(token : Text, riderEmail : Text) : async [Order] {
+    validateSession(token, null);
+
+    let matchingOrderIds = riderAssignments.values().filter(
+      func(a) { a.riderEmail == riderEmail }
+    );
+
+    // Collect orders (excluding nulls) into a list
+    let resultList = List.empty<Order>();
+    for (assignment in matchingOrderIds) {
+      switch (orders.get(assignment.orderId)) {
+        case (?order) { resultList.add(order) };
+        case (null) {};
+      };
+    };
+
+    resultList.toArray();
+  };
+
+  public shared ({ caller }) func saveRiderProfile(
+    token : Text,
+    email : Text,
+    name : Text,
+    phone : Text,
+  ) : async () {
+    validateSession(token, null);
+
+    let profile : RiderProfile = {
+      email;
+      name;
+      phone;
+    };
+    riderProfiles.add(email, profile);
+  };
+
+  public shared ({ caller }) func getRiderProfile(token : Text, email : Text) : async ?RiderProfile {
+    validateSession(token, null);
+    riderProfiles.get(email);
+  };
+
+  public shared ({ caller }) func getAllRiderProfiles(token : Text) : async [RiderProfile] {
+    validateSession(token, null);
+    let profilesIter = riderProfiles.values();
+    profilesIter.toArray();
+  };
+};

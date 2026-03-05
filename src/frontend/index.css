@@ -63,6 +63,11 @@
     --success: 0.60 0.16 145;
     --warning: 0.78 0.14 75;
     --info: 0.60 0.14 240;
+
+    /* Rider Portal tokens */
+    --rider-bg: 0.97 0.008 264;
+    --rider-primary: 0.38 0.16 264;
+    --rider-accent: 0.55 0.16 264;
   }
 
   .dark {
@@ -141,6 +146,7 @@
   .bg-warning-custom { background-color: oklch(var(--warning)); }
   .text-info { color: oklch(var(--info)); }
   .bg-info { background-color: oklch(var(--info)); }
+  .bg-rider-bg { background-color: oklch(var(--rider-bg)); }
 
   .animate-fade-in {
     animation: fadeIn 0.3s ease-out;

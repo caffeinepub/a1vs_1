@@ -31,9 +31,9 @@ import {
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import * as XLSX from "xlsx";
 import type { Customer } from "../../backend.d";
 import { useActor } from "../../hooks/useActor";
+import XLSX from "../../utils/xlsxShim";
 
 function downloadTemplate() {
   const csv =
@@ -127,7 +127,7 @@ export default function Customers() {
       const workbook = XLSX.read(buffer, { type: "array" });
       const sheetName = workbook.SheetNames[0];
       const sheet = workbook.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet);
+      const rows = XLSX.utils.sheet_to_json(sheet) as Record<string, unknown>[];
 
       const customerList: Customer[] = rows
         .map((row) => ({
