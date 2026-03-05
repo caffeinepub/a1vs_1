@@ -40,7 +40,12 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import type { Customer, Payment, StatementEntry } from "../../backend.d";
+import type {
+  CompanyProfile,
+  Customer,
+  Payment,
+  StatementEntry,
+} from "../../backend.d";
 import { useActor } from "../../hooks/useActor";
 import { generateStatementPDF } from "../../utils/pdfUtils";
 
@@ -115,6 +120,12 @@ function CustomerStatementTab() {
     enabled: !!actor && !isFetching && !!token,
   });
 
+  const { data: companyProfile } = useQuery<CompanyProfile>({
+    queryKey: ["company-profile"],
+    queryFn: () => actor!.getCompanyProfile(),
+    enabled: !!actor && !isFetching,
+  });
+
   const selectedCustomer = customers.find(
     (c) => c.storeNumber === selectedStore,
   );
@@ -164,6 +175,7 @@ function CustomerStatementTab() {
       `${fromDate} to ${toDate}`,
       closingBalance,
       selectedStore,
+      companyProfile ?? undefined,
     );
   };
 
@@ -346,7 +358,7 @@ function CustomerStatementTab() {
 
 // Company Statement Tab
 function CompanyStatementTab() {
-  const { actor } = useActor();
+  const { actor, isFetching } = useActor();
   const token = localStorage.getItem("a1vs_admin_token") ?? "";
   const [fromDate, setFromDate] = useState(() => {
     const d = new Date();
@@ -359,6 +371,12 @@ function CompanyStatementTab() {
   );
   const [entries, setEntries] = useState<StatementEntry[]>([]);
   const [isLoadingStmt, setIsLoadingStmt] = useState(false);
+
+  const { data: companyProfile } = useQuery<CompanyProfile>({
+    queryKey: ["company-profile"],
+    queryFn: () => actor!.getCompanyProfile(),
+    enabled: !!actor && !isFetching,
+  });
 
   const handleQuick = (period: string) => {
     const { from, to } = getQuickRange(period);
@@ -396,6 +414,8 @@ function CompanyStatementTab() {
       "AONE VEGETABLES & SUPPLIER",
       `${fromDate} to ${toDate}`,
       closingBalance,
+      undefined,
+      companyProfile ?? undefined,
     );
   };
 

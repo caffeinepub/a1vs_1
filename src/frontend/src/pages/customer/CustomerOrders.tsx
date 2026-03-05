@@ -2,10 +2,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { FileText, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
-import type { Order } from "../../backend.d";
+import type { CompanyProfile, Order } from "../../backend.d";
 import { useActor } from "../../hooks/useActor";
 import { generateInvoicePDF } from "../../utils/pdfUtils";
 
@@ -57,6 +57,12 @@ export default function CustomerOrders() {
     queryKey: ["customer-orders", storeNumber, token],
     queryFn: () => actor!.getOrdersByStore(token, storeNumber),
     enabled: !!actor && !isFetching && !!token && !!storeNumber,
+  });
+
+  const { data: companyProfile } = useQuery<CompanyProfile>({
+    queryKey: ["company-profile"],
+    queryFn: () => actor!.getCompanyProfile(),
+    enabled: !!actor && !isFetching,
   });
 
   const sortedOrders = [...orders].sort(
@@ -175,7 +181,7 @@ export default function CustomerOrders() {
                   className="gap-1.5 h-8 text-xs border-green-200 text-green-700 hover:bg-green-50"
                   onClick={() => {
                     try {
-                      generateInvoicePDF(order);
+                      generateInvoicePDF(order, companyProfile ?? undefined);
                     } catch {
                       toast.error("Failed to generate PDF");
                     }

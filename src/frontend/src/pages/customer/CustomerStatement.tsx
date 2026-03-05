@@ -16,10 +16,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useQuery } from "@tanstack/react-query";
 import { Download, FileBarChart, FileText, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import type { StatementEntry } from "../../backend.d";
+import type { CompanyProfile, StatementEntry } from "../../backend.d";
 import { useActor } from "../../hooks/useActor";
 import { generateStatementPDF } from "../../utils/pdfUtils";
 
@@ -67,6 +68,12 @@ export default function CustomerStatement() {
   const storeNumber = localStorage.getItem("a1vs_store_number") ?? "";
   const companyName = localStorage.getItem("a1vs_company_name") ?? "";
   const token = localStorage.getItem("a1vs_customer_token") ?? "";
+
+  const { data: companyProfile } = useQuery<CompanyProfile>({
+    queryKey: ["company-profile"],
+    queryFn: () => actor!.getCompanyProfile(),
+    enabled: !!actor && !isFetching,
+  });
 
   // Default to last 366 days
   const defaultFrom = new Date();
@@ -137,6 +144,7 @@ export default function CustomerStatement() {
       `${fromDate} to ${toDate}`,
       closingBalance,
       storeNumber,
+      companyProfile ?? undefined,
     );
   };
 

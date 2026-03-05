@@ -10,6 +10,13 @@ import type { ActorMethod } from '@icp-sdk/core/agent';
 import type { IDL } from '@icp-sdk/core/candid';
 import type { Principal } from '@icp-sdk/core/principal';
 
+export interface CompanyProfile {
+  'logoBase64' : string,
+  'gstNumber' : string,
+  'address' : string,
+  'contactEmail' : string,
+  'contactPhone' : string,
+}
 export interface Customer {
   'storeNumber' : string,
   'gstNumber' : [] | [string],
@@ -145,6 +152,7 @@ export interface _SERVICE {
   'getAllRiderAssignments' : ActorMethod<[string], Array<RiderAssignment>>,
   'getAllRiderProfiles' : ActorMethod<[string], Array<RiderProfile>>,
   'getAllSubUsers' : ActorMethod<[string], Array<SubUser>>,
+  'getCompanyProfile' : ActorMethod<[], CompanyProfile>,
   'getCompanyStatement' : ActorMethod<
     [string, bigint, bigint],
     Array<StatementEntry>
@@ -193,6 +201,7 @@ export interface _SERVICE {
     undefined
   >,
   'saveRiderProfile' : ActorMethod<[string, string, string, string], undefined>,
+  'setCompanyProfile' : ActorMethod<[string, CompanyProfile], undefined>,
   'setWebhookUrl' : ActorMethod<[string, string], undefined>,
   'subUserLogin' : ActorMethod<[string, string], string>,
   'subUserLoginV2' : ActorMethod<[string, string], string>,

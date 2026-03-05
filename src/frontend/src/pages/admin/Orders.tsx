@@ -40,6 +40,7 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 import type {
+  CompanyProfile,
   Order,
   OrderItem,
   RiderAssignment,
@@ -125,6 +126,12 @@ export default function Orders() {
     queryKey: ["admin-orders", token],
     queryFn: () => actor!.getAllOrders(token),
     enabled: !!actor && !isFetching && !!token,
+  });
+
+  const { data: companyProfile } = useReactQuery<CompanyProfile>({
+    queryKey: ["company-profile"],
+    queryFn: () => actor!.getCompanyProfile(),
+    enabled: !!actor && !isFetching,
   });
 
   const { data: allProducts = [] } = useReactQuery<Product[]>({
@@ -621,7 +628,9 @@ export default function Orders() {
                         size="sm"
                         variant="ghost"
                         className="gap-1.5 h-8 text-xs text-muted-foreground hover:text-foreground"
-                        onClick={() => generateInvoicePDF(order)}
+                        onClick={() =>
+                          generateInvoicePDF(order, companyProfile ?? undefined)
+                        }
                       >
                         <FileText className="w-3 h-3" />
                         {order.status === "delivered" && order.invoiceNumber
@@ -634,7 +643,12 @@ export default function Orders() {
                         size="sm"
                         variant="ghost"
                         className="gap-1.5 h-8 text-xs text-muted-foreground hover:text-foreground"
-                        onClick={() => generateInvoicePDFAndPrint(order)}
+                        onClick={() =>
+                          generateInvoicePDFAndPrint(
+                            order,
+                            companyProfile ?? undefined,
+                          )
+                        }
                       >
                         <FileText className="w-3 h-3" />
                         Print Invoice

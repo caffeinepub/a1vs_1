@@ -3,101 +3,17 @@ import Nat "mo:core/Nat";
 import Time "mo:core/Time";
 
 module {
-  type OldOrder = {
-    orderId : Text;
-    storeNumber : Text;
-    companyName : Text;
-    address : Text;
-    items : [OrderItem];
-    timestamp : Time.Time;
-    status : Text;
-    totalAmount : Float;
-    invoiceNumber : ?Text;
-    paymentMethod : Text;
-    poNumber : Text;
-    gstNumber : ?Text;
-    deleteReason : ?Text;
-  };
-
-  type OldPayment = {
-    paymentId : Text;
-    storeNumber : Text;
-    companyName : Text;
-    amount : Float;
-    paymentMethod : Text;
-    chequeDetails : ?Text;
-    utrDetails : ?Text;
-    timestamp : Time.Time;
-  };
-
-  type OldActor = {
-    products : Map.Map<Nat, Product>;
-    customers : Map.Map<Text, Customer>;
-    orders : Map.Map<Text, OldOrder>;
-    users : Map.Map<Text, UserRole>;
-    subUsers : Map.Map<Text, SubUser>;
-    payments : Map.Map<Text, OldPayment>;
-    sessions : Map.Map<Text, SessionToken>;
-    riderAssignments : Map.Map<Text, RiderAssignment>;
-    riderProfiles : Map.Map<Text, RiderProfile>;
-    productIdCounter : Nat;
-    orderIdCounter : Nat;
-    paymentIdCounter : Nat;
-    passwordHash : Text;
-    webhookUrl : Text;
-  };
-
-  type NewOrder = {
-    orderId : Text;
-    storeNumber : Text;
-    companyName : Text;
-    address : Text;
-    items : [OrderItem];
-    timestamp : Time.Time;
-    status : Text;
-    totalAmount : Float;
-    invoiceNumber : ?Text;
-    paymentMethod : Text;
-    poNumber : Text;
-    gstNumber : ?Text;
-    deleteReason : ?Text;
-    deliverySignature : ?Text;
-  };
-
-  type NewPayment = {
-    paymentId : Text;
-    storeNumber : Text;
-    companyName : Text;
-    amount : Float;
-    paymentMethod : Text;
-    chequeDetails : ?Text;
-    utrDetails : ?Text;
-    timestamp : Time.Time;
-    deleted : Bool;
-    deleteReason : ?Text;
-  };
-
-  type NewActor = {
-    products : Map.Map<Nat, Product>;
-    customers : Map.Map<Text, Customer>;
-    orders : Map.Map<Text, NewOrder>;
-    users : Map.Map<Text, UserRole>;
-    subUsers : Map.Map<Text, SubUser>;
-    payments : Map.Map<Text, NewPayment>;
-    sessions : Map.Map<Text, SessionToken>;
-    riderAssignments : Map.Map<Text, RiderAssignment>;
-    riderProfiles : Map.Map<Text, RiderProfile>;
-    productIdCounter : Nat;
-    orderIdCounter : Nat;
-    paymentIdCounter : Nat;
-    passwordHash : Text;
-    webhookUrl : Text;
-  };
-
+  // Copy all existing types from the original actor
   type Product = {
     id : Nat;
     name : Text;
     active : Bool;
+    unit : Text;
+    rate : Float;
+  };
+
+  type ProductInput = {
+    name : Text;
     unit : Text;
     rate : Float;
   };
@@ -121,6 +37,36 @@ module {
     unit : Text;
   };
 
+  type Order = {
+    orderId : Text;
+    storeNumber : Text;
+    companyName : Text;
+    address : Text;
+    items : [OrderItem];
+    timestamp : Time.Time;
+    status : Text;
+    totalAmount : Float;
+    invoiceNumber : ?Text;
+    paymentMethod : Text;
+    poNumber : Text;
+    gstNumber : ?Text;
+    deleteReason : ?Text;
+    deliverySignature : ?Text;
+  };
+
+  type Payment = {
+    paymentId : Text;
+    storeNumber : Text;
+    companyName : Text;
+    amount : Float;
+    paymentMethod : Text;
+    chequeDetails : ?Text;
+    utrDetails : ?Text;
+    timestamp : Time.Time;
+    deleted : Bool;
+    deleteReason : ?Text;
+  };
+
   type UserRole = { #admin; #manager; #accounts };
 
   type SubUser = {
@@ -137,6 +83,16 @@ module {
     expiry : Time.Time;
   };
 
+  type StatementEntry = {
+    entryDate : Time.Time;
+    entryType : Text;
+    referenceNumber : Text;
+    companyName : Text;
+    storeNumber : Text;
+    debit : Float;
+    credit : Float;
+  };
+
   type RiderAssignment = {
     orderId : Text;
     riderEmail : Text;
@@ -150,21 +106,61 @@ module {
     phone : Text;
   };
 
+  type CompanyProfile = {
+    gstNumber : Text;
+    contactPhone : Text;
+    contactEmail : Text;
+    address : Text;
+    logoBase64 : Text;
+  };
+
+  // Old actor type (without companyProfile field)
+  type OldActor = {
+    products : Map.Map<Nat, Product>;
+    customers : Map.Map<Text, Customer>;
+    orders : Map.Map<Text, Order>;
+    users : Map.Map<Text, UserRole>;
+    subUsers : Map.Map<Text, SubUser>;
+    payments : Map.Map<Text, Payment>;
+    sessions : Map.Map<Text, SessionToken>;
+    riderAssignments : Map.Map<Text, RiderAssignment>;
+    riderProfiles : Map.Map<Text, RiderProfile>;
+    productIdCounter : Nat;
+    orderIdCounter : Nat;
+    paymentIdCounter : Nat;
+    passwordHash : Text;
+    webhookUrl : Text;
+  };
+
+  // New actor type (with companyProfile field)
+  type NewActor = {
+    products : Map.Map<Nat, Product>;
+    customers : Map.Map<Text, Customer>;
+    orders : Map.Map<Text, Order>;
+    users : Map.Map<Text, UserRole>;
+    subUsers : Map.Map<Text, SubUser>;
+    payments : Map.Map<Text, Payment>;
+    sessions : Map.Map<Text, SessionToken>;
+    riderAssignments : Map.Map<Text, RiderAssignment>;
+    riderProfiles : Map.Map<Text, RiderProfile>;
+    companyProfile : CompanyProfile;
+    productIdCounter : Nat;
+    orderIdCounter : Nat;
+    paymentIdCounter : Nat;
+    passwordHash : Text;
+    webhookUrl : Text;
+  };
+
   public func run(old : OldActor) : NewActor {
-    let orders = old.orders.map<Text, OldOrder, NewOrder>(
-      func(_orderId, oldOrder) {
-        { oldOrder with deliverySignature = null };
-      }
-    );
-    let payments = old.payments.map<Text, OldPayment, NewPayment>(
-      func(_paymentId, oldPayment) {
-        {
-          oldPayment with
-          deleted = false;
-          deleteReason = null;
-        };
-      }
-    );
-    { old with orders; payments };
+    {
+      old with
+      companyProfile = {
+        gstNumber = "";
+        contactPhone = "";
+        contactEmail = "";
+        address = "";
+        logoBase64 = "";
+      };
+    };
   };
 };

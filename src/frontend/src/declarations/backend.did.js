@@ -83,6 +83,13 @@ export const SubUser = IDL.Record({
   'password' : IDL.Text,
   'email' : IDL.Text,
 });
+export const CompanyProfile = IDL.Record({
+  'logoBase64' : IDL.Text,
+  'gstNumber' : IDL.Text,
+  'address' : IDL.Text,
+  'contactEmail' : IDL.Text,
+  'contactPhone' : IDL.Text,
+});
 export const StatementEntry = IDL.Record({
   'entryDate' : Time,
   'entryType' : IDL.Text,
@@ -162,6 +169,7 @@ export const idlService = IDL.Service({
     ),
   'getAllRiderProfiles' : IDL.Func([IDL.Text], [IDL.Vec(RiderProfile)], []),
   'getAllSubUsers' : IDL.Func([IDL.Text], [IDL.Vec(SubUser)], []),
+  'getCompanyProfile' : IDL.Func([], [CompanyProfile], ['query']),
   'getCompanyStatement' : IDL.Func(
       [IDL.Text, IDL.Int, IDL.Int],
       [IDL.Vec(StatementEntry)],
@@ -240,6 +248,7 @@ export const idlService = IDL.Service({
       [],
       [],
     ),
+  'setCompanyProfile' : IDL.Func([IDL.Text, CompanyProfile], [], []),
   'setWebhookUrl' : IDL.Func([IDL.Text, IDL.Text], [], []),
   'subUserLogin' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
   'subUserLoginV2' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
@@ -329,6 +338,13 @@ export const idlFactory = ({ IDL }) => {
     'password' : IDL.Text,
     'email' : IDL.Text,
   });
+  const CompanyProfile = IDL.Record({
+    'logoBase64' : IDL.Text,
+    'gstNumber' : IDL.Text,
+    'address' : IDL.Text,
+    'contactEmail' : IDL.Text,
+    'contactPhone' : IDL.Text,
+  });
   const StatementEntry = IDL.Record({
     'entryDate' : Time,
     'entryType' : IDL.Text,
@@ -412,6 +428,7 @@ export const idlFactory = ({ IDL }) => {
       ),
     'getAllRiderProfiles' : IDL.Func([IDL.Text], [IDL.Vec(RiderProfile)], []),
     'getAllSubUsers' : IDL.Func([IDL.Text], [IDL.Vec(SubUser)], []),
+    'getCompanyProfile' : IDL.Func([], [CompanyProfile], ['query']),
     'getCompanyStatement' : IDL.Func(
         [IDL.Text, IDL.Int, IDL.Int],
         [IDL.Vec(StatementEntry)],
@@ -494,6 +511,7 @@ export const idlFactory = ({ IDL }) => {
         [],
         [],
       ),
+    'setCompanyProfile' : IDL.Func([IDL.Text, CompanyProfile], [], []),
     'setWebhookUrl' : IDL.Func([IDL.Text, IDL.Text], [], []),
     'subUserLogin' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),
     'subUserLoginV2' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], []),

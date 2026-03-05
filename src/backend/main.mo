@@ -11,6 +11,7 @@ import Timer "mo:core/Timer";
 import Float "mo:core/Float";
 import Migration "migration";
 
+// Instruct to run data migration on upgrade
 (with migration = Migration.run)
 actor {
   //---------------------
@@ -146,6 +147,14 @@ actor {
     phone : Text;
   };
 
+  type CompanyProfile = {
+    gstNumber : Text;
+    contactPhone : Text;
+    contactEmail : Text;
+    address : Text;
+    logoBase64 : Text;
+  };
+
   //---------------------
   // State
   //---------------------
@@ -159,6 +168,14 @@ actor {
 
   let riderAssignments = Map.empty<Text, RiderAssignment>();
   let riderProfiles = Map.empty<Text, RiderProfile>();
+
+  var companyProfile : CompanyProfile = {
+    gstNumber = "";
+    contactPhone = "";
+    contactEmail = "";
+    address = "";
+    logoBase64 = "";
+  };
 
   var productIdCounter = 1;
   var orderIdCounter = 1;
@@ -203,6 +220,18 @@ actor {
     #nanoseconds(24 * 3600 * 1000000000),
     clearExpiredSessions
   );
+
+  //---------------------
+  // New Company Profile APIs
+  //---------------------
+  public query ({ caller }) func getCompanyProfile() : async CompanyProfile {
+    companyProfile;
+  };
+
+  public shared ({ caller }) func setCompanyProfile(token : Text, profile : CompanyProfile) : async () {
+    validateSession(token, ?#admin);
+    companyProfile := profile;
+  };
 
   //---------------------
   // Admin Authentication

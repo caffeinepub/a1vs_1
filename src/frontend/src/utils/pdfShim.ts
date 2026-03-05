@@ -11,8 +11,11 @@ const getjsPDF = (): any =>
   (window as any).jspdf?.jsPDF ?? (window as any).jsPDF;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function newPDF(): any {
+export function newPDF(options?: { format?: string; unit?: string }): any {
   const Ctor = getjsPDF();
+  if (options) {
+    return new Ctor(options);
+  }
   return new Ctor();
 }
 
