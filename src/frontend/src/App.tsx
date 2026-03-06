@@ -8,6 +8,7 @@ import {
   redirect,
 } from "@tanstack/react-router";
 import PWAInstallBanner from "./components/PWAInstallBanner";
+import SplashScreen from "./pages/SplashScreen";
 import Accounts from "./pages/admin/Accounts";
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminLogin from "./pages/admin/AdminLogin";
@@ -39,11 +40,28 @@ const rootRoute = createRootRoute({
   ),
 });
 
-// Customer public routes
+// Splash / landing route — shown first to all users
 const customerIndexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
-  component: StoreSelectorPage,
+  component: () => {
+    // If customer is already logged in, go straight to their store page
+    if (localStorage.getItem("a1vs_customer_token")) {
+      return <StoreSelectorPage />;
+    }
+    // If the customer login flag is set (coming from splash), show StoreSelectorPage
+    if (sessionStorage.getItem("a1vs_show_customer_login") === "true") {
+      return <StoreSelectorPage />;
+    }
+    return <SplashScreen />;
+  },
+});
+
+// Dedicated splash route (for back-navigation from customer login)
+const splashRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/splash",
+  component: SplashScreen,
 });
 
 const orderRoute = createRoute({
@@ -187,6 +205,7 @@ const riderDashboardRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   customerIndexRoute,
+  splashRoute,
   orderRoute,
   orderConfirmationRoute,
   customerLayoutRoute.addChildren([

@@ -65,7 +65,7 @@ export function showBrowserNotification(title: string, body: string) {
     try {
       new Notification(title, {
         body,
-        icon: "/assets/uploads/A-One-Vegetables-LOGO-1.png",
+        icon: "/assets/generated/a1vs-logo-clean-transparent.dim_400x400.png",
         tag: "rider-order",
       });
     } catch {

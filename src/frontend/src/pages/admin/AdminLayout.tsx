@@ -55,10 +55,9 @@ export default function AdminLayout() {
       <div className="px-4 py-4 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
           <img
-            src="/assets/uploads/A-One-Vegetables-LOGO-1.png"
+            src="/assets/generated/a1vs-logo-clean-transparent.dim_400x400.png"
             alt="A1VS Logo"
-            className="h-12 w-12 object-contain shrink-0"
-            style={{ background: "none", mixBlendMode: "multiply" }}
+            className="h-12 w-12 object-contain shrink-0 drop-shadow-sm"
             onError={(e) => {
               const target = e.currentTarget as HTMLImageElement;
               target.style.display = "none";

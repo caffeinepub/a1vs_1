@@ -8,6 +8,8 @@ import {
   Building2,
   CheckCircle2,
   CreditCard,
+  Heart,
+  History,
   Leaf,
   Loader2,
   LogOut,
@@ -15,14 +17,15 @@ import {
   Minus,
   PackagePlus,
   Plus,
+  RefreshCw,
   Search,
   ShoppingCart,
   Trash2,
   Truck,
 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
-import type { OrderItem, Product } from "../../backend.d";
+import type { Order, OrderItem, Product } from "../../backend.d";
 import { useActor } from "../../hooks/useActor";
 
 interface CartItem {
@@ -43,6 +46,34 @@ export default function OrderPage() {
   const gstNumber = localStorage.getItem("a1vs_gst_number") ?? null;
   const token = localStorage.getItem("a1vs_customer_token") ?? "";
 
+  // Favorites: stored in localStorage per store
+  const favKey = `a1vs_favorites_${storeNumber}`;
+  const [favorites, setFavorites] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem(favKey);
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
+  const toggleFavorite = useCallback(
+    (productId: bigint) => {
+      const idStr = productId.toString();
+      setFavorites((prev) => {
+        const next = new Set(prev);
+        if (next.has(idStr)) {
+          next.delete(idStr);
+        } else {
+          next.add(idStr);
+        }
+        localStorage.setItem(favKey, JSON.stringify([...next]));
+        return next;
+      });
+    },
+    [favKey],
+  );
+
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showProductGrid, setShowProductGrid] = useState(false);
   const [productSearch, setProductSearch] = useState("");
@@ -62,11 +93,41 @@ export default function OrderPage() {
     enabled: !!actor && !isFetching,
   });
 
+  // Fetch customer order history for Repeat Orders
+  const { data: orderHistory = [] } = useQuery<Order[]>({
+    queryKey: ["customer-orders-history", token],
+    queryFn: () => actor!.getAllCustomerOrders(token),
+    enabled: !!actor && !isFetching && !!token,
+  });
+
   const activeProducts = products.filter((p) => p.active);
 
   const filteredProducts = activeProducts.filter((p) =>
     p.name.toLowerCase().includes(productSearch.toLowerCase()),
   );
+
+  // Compute favorite products
+  const favoriteProducts = useMemo(
+    () => activeProducts.filter((p) => favorites.has(p.id.toString())),
+    [activeProducts, favorites],
+  );
+
+  // Compute top repeat-ordered products from order history
+  const repeatProducts = useMemo(() => {
+    const countMap: Record<string, number> = {};
+    for (const order of orderHistory) {
+      for (const item of order.items) {
+        const idStr = item.productId.toString();
+        countMap[idStr] = (countMap[idStr] ?? 0) + 1;
+      }
+    }
+    // Sort by frequency, take top 10
+    const sorted = Object.entries(countMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([idStr]) => idStr);
+    return activeProducts.filter((p) => sorted.includes(p.id.toString()));
+  }, [orderHistory, activeProducts]);
 
   const handleLogout = () => {
     localStorage.removeItem("a1vs_customer_token");
@@ -200,6 +261,97 @@ export default function OrderPage() {
     }
   };
 
+  // Compact product card for Favorites / Repeat Orders sections
+  const CompactProductCard = ({
+    product,
+    sectionPrefix,
+  }: {
+    product: Product;
+    sectionPrefix: string;
+  }) => {
+    const isInCart = cart.some((c) => c.productId === product.id);
+    const cartItem = cart.find((c) => c.productId === product.id);
+    const qty = getGridQty(product.id);
+    const isFav = favorites.has(product.id.toString());
+
+    return (
+      <div
+        className="bg-white rounded-lg border border-border shadow-xs overflow-hidden flex-shrink-0 w-28"
+        data-ocid={`${sectionPrefix}.product.card`}
+      >
+        {/* Image with heart overlay */}
+        <div className="relative h-14 w-full">
+          {product.imageBase64 ? (
+            <img
+              src={product.imageBase64}
+              alt={product.name}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="h-full w-full bg-green-50 flex items-center justify-center">
+              <Leaf className="w-5 h-5 text-green-300" />
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleFavorite(product.id);
+            }}
+            className="absolute top-1 right-1 w-5 h-5 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-sm hover:bg-white transition-colors"
+            title={isFav ? "Remove from favorites" : "Add to favorites"}
+          >
+            <Heart
+              className={`w-3 h-3 ${isFav ? "fill-red-500 text-red-500" : "text-gray-400"}`}
+            />
+          </button>
+        </div>
+
+        <div className="p-1.5 flex flex-col gap-1">
+          <p className="font-medium text-[10px] leading-tight line-clamp-2">
+            {product.name}
+          </p>
+          <p className="text-[9px] text-muted-foreground">
+            {product.unit} · ₹{product.rate}
+          </p>
+          {isInCart && (
+            <Badge className="bg-success/10 text-success border-0 text-[8px] w-fit px-1 py-0">
+              ✓ {cartItem?.qty}
+            </Badge>
+          )}
+          <Input
+            type="number"
+            min={1}
+            value={qty}
+            onChange={(e) =>
+              setGridQty(product.id, Number.parseInt(e.target.value) || 1)
+            }
+            className="h-5 text-[10px] text-center font-semibold px-1"
+          />
+          {isInCart ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full h-5 text-[9px] px-1 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+              onClick={() => handleUpdateCartItem(product)}
+            >
+              Update
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              className="w-full h-5 text-[9px] px-1 gap-0.5"
+              onClick={() => handleAddToCartFromGrid(product)}
+            >
+              <Plus className="w-2 h-2" />
+              Add
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div
       className="min-h-screen flex flex-col"
@@ -210,7 +362,7 @@ export default function OrderPage() {
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <img
-              src="/assets/uploads/A-One-Vegetables-LOGO-1.png"
+              src="/assets/generated/a1vs-logo-clean-transparent.dim_400x400.png"
               alt="A1VS Logo"
               className="h-8 w-8 object-contain"
               onError={(e) => {
@@ -288,6 +440,83 @@ export default function OrderPage() {
             </div>
           </div>
 
+          {/* ── Favorites & Repeat Orders (shown above main grid when no search) ── */}
+          {!productSearch && (
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              {/* Favorites Section */}
+              <div className="bg-white rounded-xl border border-rose-100 p-3 shadow-xs">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Heart className="w-3.5 h-3.5 fill-red-500 text-red-500" />
+                  <span className="font-heading font-semibold text-xs text-red-600">
+                    Favorites
+                  </span>
+                  {favoriteProducts.length > 0 && (
+                    <Badge className="bg-red-50 text-red-500 border-0 text-[9px] px-1 ml-auto">
+                      {favoriteProducts.length}
+                    </Badge>
+                  )}
+                </div>
+                {favoriteProducts.length === 0 ? (
+                  <div
+                    className="flex flex-col items-center justify-center py-3 text-center"
+                    data-ocid="order.favorites.empty_state"
+                  >
+                    <Heart className="w-6 h-6 text-rose-200 mb-1" />
+                    <p className="text-[10px] text-muted-foreground leading-tight">
+                      Tap ♥ on any product to add favorites
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                    {favoriteProducts.map((product) => (
+                      <CompactProductCard
+                        key={product.id.toString()}
+                        product={product}
+                        sectionPrefix="order.favorites"
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Repeat Orders Section */}
+              <div className="bg-white rounded-xl border border-blue-100 p-3 shadow-xs">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <RefreshCw className="w-3.5 h-3.5 text-blue-500" />
+                  <span className="font-heading font-semibold text-xs text-blue-600">
+                    Repeat Orders
+                  </span>
+                  {repeatProducts.length > 0 && (
+                    <Badge className="bg-blue-50 text-blue-500 border-0 text-[9px] px-1 ml-auto">
+                      {repeatProducts.length}
+                    </Badge>
+                  )}
+                </div>
+                {repeatProducts.length === 0 ? (
+                  <div
+                    className="flex flex-col items-center justify-center py-3 text-center"
+                    data-ocid="order.repeat.empty_state"
+                  >
+                    <History className="w-6 h-6 text-blue-200 mb-1" />
+                    <p className="text-[10px] text-muted-foreground leading-tight">
+                      Your most ordered products appear here
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                    {repeatProducts.map((product) => (
+                      <CompactProductCard
+                        key={product.id.toString()}
+                        product={product}
+                        sectionPrefix="order.repeat"
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Product grid */}
           {productsLoading ? (
             <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
@@ -312,24 +541,44 @@ export default function OrderPage() {
                 const isInCart = cart.some((c) => c.productId === product.id);
                 const cartItem = cart.find((c) => c.productId === product.id);
                 const gridQty = getGridQty(product.id);
+                const isFav = favorites.has(product.id.toString());
                 return (
                   <div
                     key={product.id.toString()}
                     className="bg-white rounded-lg border border-border shadow-xs overflow-hidden flex flex-col"
                     data-ocid="order.product.card"
                   >
-                    {/* Image — fixed compact height */}
-                    {product.imageBase64 ? (
-                      <img
-                        src={product.imageBase64}
-                        alt={product.name}
-                        className="h-16 sm:h-20 w-full object-cover"
-                      />
-                    ) : (
-                      <div className="h-16 sm:h-20 w-full bg-green-50 flex items-center justify-center">
-                        <Leaf className="w-6 h-6 text-green-300" />
-                      </div>
-                    )}
+                    {/* Image with heart overlay */}
+                    <div className="relative h-16 sm:h-20 w-full">
+                      {product.imageBase64 ? (
+                        <img
+                          src={product.imageBase64}
+                          alt={product.name}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="h-full w-full bg-green-50 flex items-center justify-center">
+                          <Leaf className="w-6 h-6 text-green-300" />
+                        </div>
+                      )}
+                      {/* Favorite heart button */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFavorite(product.id);
+                        }}
+                        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-sm hover:bg-white transition-colors"
+                        title={
+                          isFav ? "Remove from favorites" : "Add to favorites"
+                        }
+                        data-ocid="order.product.toggle"
+                      >
+                        <Heart
+                          className={`w-3.5 h-3.5 transition-colors ${isFav ? "fill-red-500 text-red-500" : "text-gray-400 hover:text-red-400"}`}
+                        />
+                      </button>
+                    </div>
 
                     {/* Info */}
                     <div className="p-1.5 flex flex-col flex-1 gap-1">

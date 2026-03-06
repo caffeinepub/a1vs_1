@@ -35,7 +35,7 @@ export function isCanisterUnavailableError(err: unknown): boolean {
 
 /**
  * Maps any error into a user-friendly message string.
- * - IC canister errors → friendly "service unavailable" message
+ * - IC canister errors → generic credential error (don't expose internal details)
  * - Credential errors → pass through as-is
  * - Unknown errors → generic fallback
  */
@@ -46,7 +46,8 @@ export function getFriendlyErrorMessage(
   if (!err) return fallback;
 
   if (isCanisterUnavailableError(err)) {
-    return "Service is temporarily unavailable. Please try again in a moment.";
+    // Don't show service unavailable -- just use the fallback so we retry silently
+    return fallback;
   }
 
   if (err instanceof Error) {
@@ -57,14 +58,14 @@ export function getFriendlyErrorMessage(
       msg.includes("Reject code") ||
       msg.includes("Canister")
     ) {
-      return "Service is temporarily unavailable. Please try again in a moment.";
+      return fallback;
     }
     return msg || fallback;
   }
 
   const strErr = String(err);
   if (strErr.length > 300) {
-    return "Service is temporarily unavailable. Please try again in a moment.";
+    return fallback;
   }
   return strErr || fallback;
 }

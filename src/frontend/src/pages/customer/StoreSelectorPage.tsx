@@ -1,22 +1,20 @@
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
-  AlertTriangle,
+  ArrowLeft,
   ArrowRight,
   Building2,
   FileBarChart,
   LayoutDashboard,
   Loader2,
   MapPin,
-  RefreshCw,
   ShoppingBag,
   Store,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useActor } from "../../hooks/useActor";
 import {
@@ -39,26 +37,19 @@ export default function StoreSelectorPage() {
   const [storeInfo, setStoreInfo] = useState<StoreInfo | null>(null);
   const [isFindingStore, setIsFindingStore] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [serviceError, setServiceError] = useState<string | null>(null);
 
   // Check if already logged in
   const isLoggedIn = !!localStorage.getItem("a1vs_customer_token");
   const currentStore = localStorage.getItem("a1vs_store_number");
   const currentCompany = localStorage.getItem("a1vs_company_name");
 
-  const handleFindStore = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!storeNumber.trim()) {
-      toast.error("Please enter your store number");
-      return;
-    }
-    if (!actor) {
-      toast.error("Connecting to backend, please try again");
-      return;
-    }
+  // Clear the splash flag on mount (we've arrived at the login page)
+  useEffect(() => {
+    sessionStorage.removeItem("a1vs_show_customer_login");
+  }, []);
 
-    setIsFindingStore(true);
-    setServiceError(null);
+  const attemptFindStore = async (retries = 3): Promise<void> => {
+    if (!actor) return;
     try {
       const info = await actor.getCustomer(storeNumber.trim());
       if (!info) {
@@ -68,16 +59,56 @@ export default function StoreSelectorPage() {
       }
       setStoreInfo(info);
     } catch (err: unknown) {
-      if (isCanisterUnavailableError(err)) {
-        setServiceError(
-          "Service is temporarily unavailable. Please try again in a moment.",
-        );
-      } else {
-        const msg = getFriendlyErrorMessage(err, "Failed to find store");
-        toast.error(msg);
+      if (isCanisterUnavailableError(err) && retries > 0) {
+        await new Promise((r) => setTimeout(r, 2000));
+        return attemptFindStore(retries - 1);
       }
+      const msg = getFriendlyErrorMessage(
+        err,
+        "Store not found. Please check your store number.",
+      );
+      toast.error(msg);
+    }
+  };
+
+  const handleFindStore = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!storeNumber.trim()) {
+      toast.error("Please enter your store number");
+      return;
+    }
+    if (!actor) {
+      toast.error("Connecting to backend, please try again in a moment");
+      return;
+    }
+    setIsFindingStore(true);
+    try {
+      await attemptFindStore();
     } finally {
       setIsFindingStore(false);
+    }
+  };
+
+  const attemptLogin = async (retries = 3): Promise<void> => {
+    if (!actor || !storeInfo) return;
+    try {
+      const token = await actor.customerLogin(storeNumber.trim(), password);
+      localStorage.setItem("a1vs_customer_token", token);
+      localStorage.setItem("a1vs_store_number", storeNumber.trim());
+      localStorage.setItem("a1vs_company_name", storeInfo.companyName);
+      localStorage.setItem("a1vs_address", storeInfo.address);
+      localStorage.setItem("a1vs_gst_number", storeInfo.gstNumber ?? "");
+      navigate({ to: "/customer/dashboard" });
+    } catch (err: unknown) {
+      if (isCanisterUnavailableError(err) && retries > 0) {
+        await new Promise((r) => setTimeout(r, 2000));
+        return attemptLogin(retries - 1);
+      }
+      const msg = getFriendlyErrorMessage(
+        err,
+        "Invalid password. Please try again.",
+      );
+      toast.error(msg);
     }
   };
 
@@ -88,26 +119,9 @@ export default function StoreSelectorPage() {
       return;
     }
     if (!actor || !storeInfo) return;
-
     setIsLoggingIn(true);
-    setServiceError(null);
     try {
-      const token = await actor.customerLogin(storeNumber.trim(), password);
-      localStorage.setItem("a1vs_customer_token", token);
-      localStorage.setItem("a1vs_store_number", storeNumber.trim());
-      localStorage.setItem("a1vs_company_name", storeInfo.companyName);
-      localStorage.setItem("a1vs_address", storeInfo.address);
-      localStorage.setItem("a1vs_gst_number", storeInfo.gstNumber ?? "");
-      navigate({ to: "/customer/dashboard" });
-    } catch (err: unknown) {
-      if (isCanisterUnavailableError(err)) {
-        setServiceError(
-          "Service is temporarily unavailable. Please try again in a moment.",
-        );
-      } else {
-        const msg = getFriendlyErrorMessage(err, "Invalid password");
-        toast.error(msg);
-      }
+      await attemptLogin();
     } finally {
       setIsLoggingIn(false);
     }
@@ -148,37 +162,47 @@ export default function StoreSelectorPage() {
         />
       </div>
 
-      <div className="relative flex-1 flex flex-col items-center justify-start px-4 py-10">
-        {/* Logo & Hero */}
-        <div className="text-center mb-8 animate-slide-up">
-          <div className="flex flex-col items-center gap-3">
-            <img
-              src="/assets/uploads/A-One-Vegetables-LOGO-1.png"
-              alt="A1VS Logo"
-              className="h-24 w-24 object-contain drop-shadow-lg"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).style.display = "none";
+      <div className="relative flex-1 flex flex-col items-center justify-start px-4 py-8">
+        {/* Compact header with back button */}
+        <div className="w-full max-w-md mb-6 animate-slide-up">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                // Clear flags so we go back to portal selection phase
+                sessionStorage.removeItem("a1vs_show_customer_login");
+                navigate({ to: "/splash" });
               }}
-            />
-            <div>
-              <h1
-                className="font-heading text-4xl font-bold tracking-tight"
-                style={{ color: "oklch(0.20 0.05 148)" }}
-              >
-                A1VS
-              </h1>
-              <p
-                className="text-xs tracking-widest uppercase mt-0.5 font-medium"
-                style={{ color: "oklch(0.45 0.08 148)" }}
-              >
-                AONE VEGETABLES & SUPPLIER
-              </p>
-              <p
-                className="mt-2 text-sm"
-                style={{ color: "oklch(0.50 0.06 148)" }}
-              >
-                Fresh Vegetable &amp; Fruit Ordering Portal
-              </p>
+              className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-white/70 transition-colors"
+              style={{ color: "oklch(0.35 0.08 148)" }}
+              aria-label="Back to portal selection"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back
+            </button>
+            <div className="flex items-center gap-2 ml-auto">
+              <img
+                src="/assets/generated/a1vs-logo-clean-transparent.dim_400x400.png"
+                alt="A1VS"
+                className="h-12 w-12 object-contain"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).style.display = "none";
+                }}
+              />
+              <div>
+                <p
+                  className="font-heading font-bold text-sm leading-none"
+                  style={{ color: "oklch(0.20 0.05 148)" }}
+                >
+                  A1VS
+                </p>
+                <p
+                  className="text-[9px] tracking-widest uppercase font-medium leading-tight mt-0.5"
+                  style={{ color: "oklch(0.45 0.08 148)" }}
+                >
+                  Customer Portal
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -288,32 +312,6 @@ export default function StoreSelectorPage() {
             className="w-full max-w-md animate-slide-up"
             style={{ animationDelay: "0.1s" }}
           >
-            {/* Service unavailable banner */}
-            {serviceError && (
-              <Alert
-                variant="destructive"
-                className="mb-3 bg-amber-50 border-amber-300 text-amber-900"
-                data-ocid="customer.login.error_state"
-              >
-                <AlertTriangle className="h-4 w-4 text-amber-600" />
-                <AlertDescription className="flex items-center justify-between gap-3">
-                  <span className="text-sm">{serviceError}</span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="shrink-0 border-amber-400 text-amber-800 hover:bg-amber-100 h-7 px-2 text-xs gap-1"
-                    onClick={() => {
-                      setServiceError(null);
-                      window.location.reload();
-                    }}
-                    data-ocid="customer.login.error_state.button"
-                  >
-                    <RefreshCw className="h-3 w-3" />
-                    Retry
-                  </Button>
-                </AlertDescription>
-              </Alert>
-            )}
             <Card className="w-full shadow-xl border-0 bg-white/95">
               <CardContent className="p-6 space-y-5">
                 {!storeInfo ? (
