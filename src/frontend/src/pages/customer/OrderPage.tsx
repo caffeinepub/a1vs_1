@@ -1,6 +1,12 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -22,11 +28,12 @@ import {
   ShoppingCart,
   Trash2,
   Truck,
+  Wrench,
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import type { Order, OrderItem, Product } from "../../backend.d";
-import { useActor } from "../../hooks/useActor";
+import { useExtendedActor } from "../../hooks/useExtendedActor";
 
 interface CartItem {
   productId: bigint;
@@ -38,7 +45,7 @@ interface CartItem {
 
 export default function OrderPage() {
   const navigate = useNavigate();
-  const { actor, isFetching } = useActor();
+  const { actor, isFetching } = useExtendedActor();
 
   const storeNumber = localStorage.getItem("a1vs_store_number") ?? "";
   const companyName = localStorage.getItem("a1vs_company_name") ?? "";
@@ -85,11 +92,13 @@ export default function OrderPage() {
     "cod",
   );
 
-  const { data: products = [], isLoading: productsLoading } = useQuery<
-    Product[]
-  >({
-    queryKey: ["active-products"],
-    queryFn: () => actor!.getActiveProducts(),
+  const {
+    data: products = [],
+    isLoading: productsLoading,
+    refetch: refetchProducts,
+  } = useQuery<Product[]>({
+    queryKey: ["all-products-public"],
+    queryFn: () => actor!.getAllProductsPublic(),
     enabled: !!actor && !isFetching,
   });
 
@@ -100,22 +109,34 @@ export default function OrderPage() {
     enabled: !!actor && !isFetching && !!token,
   });
 
+  // BUG FIX 1: Filter orders to only this store's orders (backend returns all customers' orders)
+  const myOrderHistory = useMemo(
+    () => orderHistory.filter((order) => order.storeNumber === storeNumber),
+    [orderHistory, storeNumber],
+  );
+
+  // All products (active + inactive), active-only subset
   const activeProducts = products.filter((p) => p.active);
 
-  const filteredProducts = activeProducts.filter((p) =>
+  // Detect "products updating" state: all products exist but all are inactive
+  const allProductsUpdating =
+    products.length > 0 && products.every((p) => !p.active);
+
+  // For the product grid: show all products (including inactive with overlay)
+  const filteredProducts = products.filter((p) =>
     p.name.toLowerCase().includes(productSearch.toLowerCase()),
   );
 
-  // Compute favorite products
+  // Compute favorite products (active only — inactive can't be ordered)
   const favoriteProducts = useMemo(
     () => activeProducts.filter((p) => favorites.has(p.id.toString())),
     [activeProducts, favorites],
   );
 
-  // Compute top repeat-ordered products from order history
+  // Compute top repeat-ordered products from THIS store's order history only (active only)
   const repeatProducts = useMemo(() => {
     const countMap: Record<string, number> = {};
-    for (const order of orderHistory) {
+    for (const order of myOrderHistory) {
       for (const item of order.items) {
         const idStr = item.productId.toString();
         countMap[idStr] = (countMap[idStr] ?? 0) + 1;
@@ -127,7 +148,47 @@ export default function OrderPage() {
       .slice(0, 10)
       .map(([idStr]) => idStr);
     return activeProducts.filter((p) => sorted.includes(p.id.toString()));
-  }, [orderHistory, activeProducts]);
+  }, [myOrderHistory, activeProducts]);
+
+  // BUG FIX 2: State for repeat-last-order confirm
+  const [showRepeatConfirm, setShowRepeatConfirm] = useState(false);
+
+  // Most recent order for this store (sorted by timestamp desc)
+  const lastOrder = useMemo(() => {
+    if (myOrderHistory.length === 0) return null;
+    return [...myOrderHistory].sort(
+      (a, b) => Number(b.timestamp) - Number(a.timestamp),
+    )[0];
+  }, [myOrderHistory]);
+
+  const handleRepeatLastOrder = () => {
+    if (!lastOrder) return;
+    if (cart.length > 0) {
+      setShowRepeatConfirm(true);
+      return;
+    }
+    loadLastOrderIntoCart();
+  };
+
+  const loadLastOrderIntoCart = () => {
+    if (!lastOrder) return;
+    const newCart: CartItem[] = lastOrder.items.map((item: OrderItem) => {
+      // Use current product rate if available, fallback to rate from order
+      const liveProduct = activeProducts.find((p) => p.id === item.productId);
+      return {
+        productId: item.productId,
+        productName: item.productName,
+        qty: Number(item.qty),
+        rate: liveProduct?.rate ?? item.rate,
+        unit: item.unit,
+      };
+    });
+    setCart(newCart);
+    setShowRepeatConfirm(false);
+    toast.success(
+      "Last order loaded into cart. You can edit items before placing.",
+    );
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("a1vs_customer_token");
@@ -440,85 +501,176 @@ export default function OrderPage() {
             </div>
           </div>
 
-          {/* ── Favorites & Repeat Orders (shown above main grid when no search) ── */}
+          {/* ── Repeat Orders & Favorites (shown above main grid when no search) ── */}
           {!productSearch && (
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              {/* Favorites Section */}
-              <div className="bg-white rounded-xl border border-rose-100 p-3 shadow-xs">
-                <div className="flex items-center gap-1.5 mb-2">
-                  <Heart className="w-3.5 h-3.5 fill-red-500 text-red-500" />
-                  <span className="font-heading font-semibold text-xs text-red-600">
-                    Favorites
-                  </span>
-                  {favoriteProducts.length > 0 && (
-                    <Badge className="bg-red-50 text-red-500 border-0 text-[9px] px-1 ml-auto">
-                      {favoriteProducts.length}
-                    </Badge>
-                  )}
-                </div>
-                {favoriteProducts.length === 0 ? (
-                  <div
-                    className="flex flex-col items-center justify-center py-3 text-center"
-                    data-ocid="order.favorites.empty_state"
-                  >
-                    <Heart className="w-6 h-6 text-rose-200 mb-1" />
-                    <p className="text-[10px] text-muted-foreground leading-tight">
-                      Tap ♥ on any product to add favorites
+            <>
+              {/* Repeat-confirm inline prompt */}
+              {showRepeatConfirm && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-3 flex items-start gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-amber-800 leading-tight">
+                      Replace cart?
+                    </p>
+                    <p className="text-[10px] text-amber-700 mt-0.5 leading-tight">
+                      This will replace your current cart with the last order's
+                      items.
                     </p>
                   </div>
-                ) : (
-                  <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                    {favoriteProducts.map((product) => (
-                      <CompactProductCard
-                        key={product.id.toString()}
-                        product={product}
-                        sectionPrefix="order.favorites"
-                      />
-                    ))}
+                  <div className="flex gap-1.5 shrink-0">
+                    <Button
+                      size="sm"
+                      className="h-6 text-[10px] px-2 bg-amber-600 hover:bg-amber-700"
+                      onClick={loadLastOrderIntoCart}
+                      data-ocid="order.repeat.confirm_button"
+                    >
+                      Continue
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-6 text-[10px] px-2"
+                      onClick={() => setShowRepeatConfirm(false)}
+                      data-ocid="order.repeat.cancel_button"
+                    >
+                      Cancel
+                    </Button>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
-              {/* Repeat Orders Section */}
-              <div className="bg-white rounded-xl border border-blue-100 p-3 shadow-xs">
-                <div className="flex items-center gap-1.5 mb-2">
-                  <RefreshCw className="w-3.5 h-3.5 text-blue-500" />
-                  <span className="font-heading font-semibold text-xs text-blue-600">
-                    Repeat Orders
-                  </span>
-                  {repeatProducts.length > 0 && (
-                    <Badge className="bg-blue-50 text-blue-500 border-0 text-[9px] px-1 ml-auto">
-                      {repeatProducts.length}
-                    </Badge>
+              {/* FIX 3+4: Repeat Orders FIRST, Favorites SECOND. Stack vertically on mobile, side-by-side on md+ */}
+              <div className="flex flex-col gap-3 md:grid md:grid-cols-2 mb-4">
+                {/* Repeat Orders Section — FIRST panel */}
+                <div className="bg-white rounded-xl border border-blue-100 p-3 shadow-xs min-h-[120px]">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <RefreshCw className="w-3.5 h-3.5 text-blue-500" />
+                    <span className="font-heading font-semibold text-xs text-blue-600">
+                      Repeat Orders
+                    </span>
+                    {repeatProducts.length > 0 && (
+                      <Badge className="bg-blue-50 text-blue-500 border-0 text-[9px] px-1">
+                        {repeatProducts.length}
+                      </Badge>
+                    )}
+                    {/* Repeat Last Order button */}
+                    <div className="ml-auto">
+                      <TooltipProvider delayDuration={0}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-5 text-[9px] px-1.5 gap-0.5 border-blue-200 text-blue-600 hover:bg-blue-50 disabled:opacity-40"
+                                onClick={handleRepeatLastOrder}
+                                disabled={!lastOrder}
+                                data-ocid="order.repeat.primary_button"
+                              >
+                                <RefreshCw className="w-2.5 h-2.5" />
+                                Repeat Last
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          {!lastOrder && (
+                            <TooltipContent
+                              side="bottom"
+                              className="text-[10px]"
+                            >
+                              No previous orders found
+                            </TooltipContent>
+                          )}
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  </div>
+                  {repeatProducts.length === 0 ? (
+                    <div
+                      className="flex flex-col items-center justify-center py-4 text-center"
+                      data-ocid="order.repeat.empty_state"
+                    >
+                      <History className="w-6 h-6 text-blue-200 mb-1" />
+                      <p className="text-[10px] text-muted-foreground leading-tight">
+                        Your most ordered products appear here
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                      {repeatProducts.map((product) => (
+                        <CompactProductCard
+                          key={product.id.toString()}
+                          product={product}
+                          sectionPrefix="order.repeat"
+                        />
+                      ))}
+                    </div>
                   )}
                 </div>
-                {repeatProducts.length === 0 ? (
-                  <div
-                    className="flex flex-col items-center justify-center py-3 text-center"
-                    data-ocid="order.repeat.empty_state"
-                  >
-                    <History className="w-6 h-6 text-blue-200 mb-1" />
-                    <p className="text-[10px] text-muted-foreground leading-tight">
-                      Your most ordered products appear here
-                    </p>
+
+                {/* Favorites Section — SECOND panel */}
+                <div className="bg-white rounded-xl border border-rose-100 p-3 shadow-xs min-h-[120px]">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Heart className="w-3.5 h-3.5 fill-red-500 text-red-500" />
+                    <span className="font-heading font-semibold text-xs text-red-600">
+                      Favorites
+                    </span>
+                    {favoriteProducts.length > 0 && (
+                      <Badge className="bg-red-50 text-red-500 border-0 text-[9px] px-1 ml-auto">
+                        {favoriteProducts.length}
+                      </Badge>
+                    )}
                   </div>
-                ) : (
-                  <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                    {repeatProducts.map((product) => (
-                      <CompactProductCard
-                        key={product.id.toString()}
-                        product={product}
-                        sectionPrefix="order.repeat"
-                      />
-                    ))}
-                  </div>
-                )}
+                  {favoriteProducts.length === 0 ? (
+                    <div
+                      className="flex flex-col items-center justify-center py-4 text-center"
+                      data-ocid="order.favorites.empty_state"
+                    >
+                      <Heart className="w-6 h-6 text-rose-200 mb-1" />
+                      <p className="text-[10px] text-muted-foreground leading-tight">
+                        Tap ♥ on any product to add favorites
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                      {favoriteProducts.map((product) => (
+                        <CompactProductCard
+                          key={product.id.toString()}
+                          product={product}
+                          sectionPrefix="order.favorites"
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            </>
           )}
 
-          {/* Product grid */}
-          {productsLoading ? (
+          {/* Products Updating screen — shown when ALL products are inactive */}
+          {!productsLoading && allProductsUpdating ? (
+            <div
+              className="flex flex-col items-center justify-center py-16 text-center rounded-xl border border-amber-200 bg-amber-50"
+              data-ocid="order.products_updating.section"
+            >
+              <Wrench className="w-12 h-12 text-amber-500 mb-4" />
+              <h3 className="font-heading font-bold text-lg text-amber-800 mb-2">
+                Products are Updating
+              </h3>
+              <p className="text-sm text-amber-700 max-w-xs leading-relaxed">
+                We'll be back soon. Please check again in a few minutes.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-5 gap-2 border-amber-300 text-amber-700 hover:bg-amber-100"
+                onClick={() => refetchProducts()}
+                data-ocid="order.products_updating.button"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                Refresh
+              </Button>
+            </div>
+          ) : /* Product grid */
+          productsLoading ? (
             <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
               {Array.from({ length: 12 }).map((_, i) => (
                 <div
@@ -542,10 +694,11 @@ export default function OrderPage() {
                 const cartItem = cart.find((c) => c.productId === product.id);
                 const gridQty = getGridQty(product.id);
                 const isFav = favorites.has(product.id.toString());
+                const isOutOfStock = !product.active;
                 return (
                   <div
                     key={product.id.toString()}
-                    className="bg-white rounded-lg border border-border shadow-xs overflow-hidden flex flex-col"
+                    className={`rounded-lg border shadow-xs overflow-hidden flex flex-col relative ${isOutOfStock ? "bg-gray-50 border-gray-200" : "bg-white border-border"}`}
                     data-ocid="order.product.card"
                   >
                     {/* Image with heart overlay */}
@@ -554,86 +707,114 @@ export default function OrderPage() {
                         <img
                           src={product.imageBase64}
                           alt={product.name}
-                          className="h-full w-full object-cover"
+                          className={`h-full w-full object-cover ${isOutOfStock ? "opacity-40" : ""}`}
                         />
                       ) : (
-                        <div className="h-full w-full bg-green-50 flex items-center justify-center">
-                          <Leaf className="w-6 h-6 text-green-300" />
+                        <div
+                          className={`h-full w-full flex items-center justify-center ${isOutOfStock ? "bg-gray-100" : "bg-green-50"}`}
+                        >
+                          <Leaf
+                            className={`w-6 h-6 ${isOutOfStock ? "text-gray-300" : "text-green-300"}`}
+                          />
                         </div>
                       )}
-                      {/* Favorite heart button */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleFavorite(product.id);
-                        }}
-                        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-sm hover:bg-white transition-colors"
-                        title={
-                          isFav ? "Remove from favorites" : "Add to favorites"
-                        }
-                        data-ocid="order.product.toggle"
-                      >
-                        <Heart
-                          className={`w-3.5 h-3.5 transition-colors ${isFav ? "fill-red-500 text-red-500" : "text-gray-400 hover:text-red-400"}`}
-                        />
-                      </button>
+                      {/* Out of Stock badge */}
+                      {isOutOfStock && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                          <span className="bg-red-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">
+                            Out of Stock
+                          </span>
+                        </div>
+                      )}
+                      {/* Favorite heart button — only for active products */}
+                      {!isOutOfStock && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFavorite(product.id);
+                          }}
+                          className="absolute top-1 right-1 w-6 h-6 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-sm hover:bg-white transition-colors"
+                          title={
+                            isFav ? "Remove from favorites" : "Add to favorites"
+                          }
+                          data-ocid="order.product.toggle"
+                        >
+                          <Heart
+                            className={`w-3.5 h-3.5 transition-colors ${isFav ? "fill-red-500 text-red-500" : "text-gray-400 hover:text-red-400"}`}
+                          />
+                        </button>
+                      )}
                     </div>
 
                     {/* Info */}
                     <div className="p-1.5 flex flex-col flex-1 gap-1">
                       <div>
-                        <p className="font-medium text-[11px] leading-tight line-clamp-2">
+                        <p
+                          className={`font-medium text-[11px] leading-tight line-clamp-2 ${isOutOfStock ? "text-gray-400" : ""}`}
+                        >
                           {product.name}
                         </p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                        <p
+                          className={`text-[10px] mt-0.5 ${isOutOfStock ? "text-gray-400" : "text-muted-foreground"}`}
+                        >
                           {product.unit} · ₹{product.rate}
                         </p>
                       </div>
 
-                      {/* In-cart badge */}
-                      {isInCart && (
-                        <Badge className="bg-success/10 text-success border-0 text-[9px] w-fit px-1 py-0">
-                          ✓ {cartItem?.qty}
-                        </Badge>
-                      )}
-
-                      {/* Qty input */}
-                      <Input
-                        type="number"
-                        min={1}
-                        value={gridQty}
-                        onChange={(e) =>
-                          setGridQty(
-                            product.id,
-                            Number.parseInt(e.target.value) || 1,
-                          )
-                        }
-                        className="h-6 text-xs text-center font-semibold px-1"
-                        data-ocid="order.product.input"
-                      />
-
-                      {/* Add / Update button */}
-                      {isInCart ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="w-full h-6 text-[10px] px-1 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-                          onClick={() => handleUpdateCartItem(product)}
-                          data-ocid="order.product.save_button"
-                        >
-                          Update
-                        </Button>
+                      {isOutOfStock ? (
+                        <div className="flex-1 flex items-end">
+                          <span className="text-[9px] text-red-500 font-medium">
+                            Currently unavailable
+                          </span>
+                        </div>
                       ) : (
-                        <Button
-                          size="sm"
-                          className="w-full h-6 text-[10px] px-1 gap-0.5"
-                          onClick={() => handleAddToCartFromGrid(product)}
-                          data-ocid="order.product.primary_button"
-                        >
-                          <Plus className="w-2.5 h-2.5" />
-                          Add
-                        </Button>
+                        <>
+                          {/* In-cart badge */}
+                          {isInCart && (
+                            <Badge className="bg-success/10 text-success border-0 text-[9px] w-fit px-1 py-0">
+                              ✓ {cartItem?.qty}
+                            </Badge>
+                          )}
+
+                          {/* Qty input */}
+                          <Input
+                            type="number"
+                            min={1}
+                            value={gridQty}
+                            onChange={(e) =>
+                              setGridQty(
+                                product.id,
+                                Number.parseInt(e.target.value) || 1,
+                              )
+                            }
+                            className="h-6 text-xs text-center font-semibold px-1"
+                            data-ocid="order.product.input"
+                          />
+
+                          {/* Add / Update button */}
+                          {isInCart ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="w-full h-6 text-[10px] px-1 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                              onClick={() => handleUpdateCartItem(product)}
+                              data-ocid="order.product.save_button"
+                            >
+                              Update
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              className="w-full h-6 text-[10px] px-1 gap-0.5"
+                              onClick={() => handleAddToCartFromGrid(product)}
+                              data-ocid="order.product.primary_button"
+                            >
+                              <Plus className="w-2.5 h-2.5" />
+                              Add
+                            </Button>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
@@ -846,11 +1027,15 @@ export default function OrderPage() {
                   onClick={openProductGrid}
                   size="sm"
                   className="gap-2 h-9"
-                  disabled={productsLoading || activeProducts.length === 0}
+                  disabled={
+                    productsLoading ||
+                    activeProducts.length === 0 ||
+                    allProductsUpdating
+                  }
                   data-ocid="order.add_item.button"
                 >
                   <PackagePlus className="w-4 h-4" />
-                  Add Item
+                  {allProductsUpdating ? "Products Updating..." : "Add Item"}
                 </Button>
               </div>
 

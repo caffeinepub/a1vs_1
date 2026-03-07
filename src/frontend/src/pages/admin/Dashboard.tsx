@@ -15,8 +15,9 @@ import {
   Wallet,
   XCircle,
 } from "lucide-react";
-import type { Order, Payment } from "../../backend.d";
-import { useActor } from "../../hooks/useActor";
+import type { Order } from "../../backend.d";
+import { useExtendedActor } from "../../hooks/useExtendedActor";
+import type { Payment } from "../../types/appTypes";
 
 function formatDate(timestamp: bigint) {
   const ms = Number(timestamp) / 1_000_000;
@@ -64,7 +65,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function Dashboard() {
-  const { actor, isFetching } = useActor();
+  const { actor, isFetching } = useExtendedActor();
   const token = localStorage.getItem("a1vs_admin_token") ?? "";
 
   const { data: orders = [], isLoading: ordersLoading } = useQuery<Order[]>({
@@ -89,7 +90,13 @@ export default function Dashboard() {
     Payment[]
   >({
     queryKey: ["admin-payments-dashboard", token],
-    queryFn: () => actor!.getAllPayments(token),
+    queryFn: async () => {
+      try {
+        return await actor!.getAllPayments(token);
+      } catch {
+        return [];
+      }
+    },
     enabled: !!actor && !isFetching && !!token,
   });
 

@@ -18,8 +18,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Switch } from "@/components/ui/switch";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  Database,
   Download,
   FileSpreadsheet,
   Loader2,
@@ -31,7 +33,7 @@ import {
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import type { Customer } from "../../backend.d";
+import type { Customer, CustomerInput } from "../../backend.d";
 import { useActor } from "../../hooks/useActor";
 import XLSX from "../../utils/xlsxShim";
 
@@ -82,7 +84,7 @@ function customerToForm(c: Customer): EditForm {
   };
 }
 
-function formToCustomer(f: EditForm): Customer {
+function formToCustomerInput(f: EditForm): CustomerInput {
   return {
     storeNumber: f.storeNumber.trim(),
     name: f.name.trim(),
@@ -107,6 +109,9 @@ export default function Customers() {
   const [deletingStoreNumber, setDeletingStoreNumber] = useState<string | null>(
     null,
   );
+  const [togglingStoreNumber, setTogglingStoreNumber] = useState<string | null>(
+    null,
+  );
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [addForm, setAddForm] = useState<EditForm>(emptyForm);
   const [isAddingSaving, setIsAddingSaving] = useState(false);
@@ -115,6 +120,24 @@ export default function Customers() {
     queryKey: ["admin-customers", token],
     queryFn: () => actor!.getAllCustomers(token),
     enabled: !!actor && !isFetching && !!token,
+  });
+
+  // Toggle customer active/inactive
+  const toggleCustomerMutation = useMutation({
+    mutationFn: (storeNumber: string) =>
+      actor!.toggleCustomerActive(token, storeNumber),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-customers"] });
+      toast.success("Customer status updated");
+    },
+    onError: (err: unknown) => {
+      const msg =
+        err instanceof Error ? err.message : "Failed to update customer status";
+      toast.error(msg);
+    },
+    onSettled: () => {
+      setTogglingStoreNumber(null);
+    },
   });
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -129,8 +152,9 @@ export default function Customers() {
       const sheet = workbook.Sheets[sheetName];
       const rows = XLSX.utils.sheet_to_json(sheet) as Record<string, unknown>[];
 
-      const customerList: Customer[] = rows
-        .map((row) => ({
+      const allMapped = rows.map((row, i) => ({
+        rowNum: i + 2, // +2 because row 1 is header
+        data: {
           storeNumber: String(
             row["Store Number"] ?? row["store number"] ?? row.StoreNumber ?? "",
           ).trim(),
@@ -145,19 +169,37 @@ export default function Customers() {
             : undefined,
           email: String(row.Email ?? row.email ?? "").trim(),
           password: String(row.Password ?? row.password ?? "").trim(),
-        }))
-        .filter((c) => c.storeNumber && c.email && c.password);
+        },
+      }));
+
+      // Only Store Number is mandatory — skip rows missing it
+      const skippedRows = allMapped
+        .filter((r) => !r.data.storeNumber)
+        .map((r) => r.rowNum);
+
+      const customerList: CustomerInput[] = allMapped
+        .filter((r) => r.data.storeNumber)
+        .map((r) => r.data);
 
       if (customerList.length === 0) {
         toast.error(
-          "No valid customers found. Check column headers match the template.",
+          "No valid customers found. Every row must have a Store Number.",
         );
         return;
       }
 
-      await actor.replaceCustomers(token, customerList);
+      if (skippedRows.length > 0) {
+        toast.warning(
+          `${skippedRows.length} row(s) skipped (missing Store Number): rows ${skippedRows.join(", ")}`,
+        );
+      }
+
+      // Use addCustomersOnly — does NOT replace existing customers
+      await actor.addCustomersOnly(token, customerList);
       qc.invalidateQueries({ queryKey: ["admin-customers"] });
-      toast.success(`${customerList.length} customers uploaded successfully`);
+      toast.success(
+        `${customerList.length} new customers added (existing records unchanged)`,
+      );
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : "Failed to upload customers";
@@ -168,6 +210,40 @@ export default function Customers() {
     }
   };
 
+  const handleDownloadCustomerData = () => {
+    if (customers.length === 0) {
+      toast.error("No customer data to download");
+      return;
+    }
+    const rows = customers.map((c) => ({
+      "Store Number": c.storeNumber,
+      Name: c.name,
+      Phone: c.phone,
+      "Company Name": c.companyName,
+      Address: c.address,
+      "GST Number": c.gstNumber ?? "",
+      Email: c.email,
+      Password: c.password,
+      Status: c.active ? "Active" : "On Hold",
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws["!cols"] = [
+      { wch: 15 },
+      { wch: 20 },
+      { wch: 14 },
+      { wch: 25 },
+      { wch: 35 },
+      { wch: 18 },
+      { wch: 30 },
+      { wch: 15 },
+      { wch: 10 },
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Customers");
+    XLSX.writeFile(wb, "a1vs_customer_data_export.xlsx");
+    toast.success(`Downloaded ${customers.length} customer records`);
+  };
+
   const openEdit = (customer: Customer) => {
     setEditingCustomer(customer);
     setEditForm(customerToForm(customer));
@@ -175,21 +251,18 @@ export default function Customers() {
 
   const handleSaveEdit = async () => {
     if (!actor || !editingCustomer) return;
-    if (
-      !editForm.storeNumber.trim() ||
-      !editForm.email.trim() ||
-      !editForm.password.trim()
-    ) {
-      toast.error("Store Number, Email, and Password are required.");
+    if (!editForm.storeNumber.trim()) {
+      toast.error("Store Number is required.");
       return;
     }
     setIsSaving(true);
     try {
-      const updatedCustomer = formToCustomer(editForm);
-      const updatedList = customers.map((c) =>
-        c.storeNumber === editingCustomer.storeNumber ? updatedCustomer : c,
+      const updatedInput = formToCustomerInput(editForm);
+      await actor.updateCustomer(
+        token,
+        editingCustomer.storeNumber,
+        updatedInput,
       );
-      await actor.replaceCustomers(token, updatedList);
       qc.invalidateQueries({ queryKey: ["admin-customers"] });
       toast.success("Customer updated successfully");
       setEditingCustomer(null);
@@ -206,10 +279,7 @@ export default function Customers() {
     if (!actor) return;
     setDeletingStoreNumber(storeNumber);
     try {
-      const updatedList = customers.filter(
-        (c) => c.storeNumber !== storeNumber,
-      );
-      await actor.replaceCustomers(token, updatedList);
+      await actor.deleteCustomer(token, storeNumber);
       qc.invalidateQueries({ queryKey: ["admin-customers"] });
       toast.success("Customer deleted successfully");
     } catch (err: unknown) {
@@ -223,37 +293,26 @@ export default function Customers() {
 
   const handleAddManually = async () => {
     if (!actor) return;
-    const required: Array<keyof EditForm> = [
-      "storeNumber",
-      "name",
-      "phone",
-      "companyName",
-      "address",
-      "email",
-      "password",
-    ];
-    for (const field of required) {
-      if (!addForm[field].trim()) {
-        toast.error(
-          `${formFields.find((f) => f.key === field)?.label ?? field} is required.`,
-        );
-        return;
-      }
+    // Only Store Number is mandatory
+    if (!addForm.storeNumber.trim()) {
+      toast.error("Store Number is required.");
+      return;
     }
     if (customers.some((c) => c.storeNumber === addForm.storeNumber.trim())) {
       toast.error("Store Number already exists.");
       return;
     }
-    if (customers.some((c) => c.email === addForm.email.trim())) {
+    // Email uniqueness check only if email is provided
+    if (
+      addForm.email.trim() &&
+      customers.some((c) => c.email === addForm.email.trim())
+    ) {
       toast.error("Email already exists.");
       return;
     }
     setIsAddingSaving(true);
     try {
-      await actor.replaceCustomers(token, [
-        ...customers,
-        formToCustomer(addForm),
-      ]);
+      await actor.addCustomer(token, formToCustomerInput(addForm));
       qc.invalidateQueries({ queryKey: ["admin-customers"] });
       toast.success("Customer added successfully");
       setIsAddDialogOpen(false);
@@ -273,13 +332,13 @@ export default function Customers() {
     required?: boolean;
   }> = [
     { key: "storeNumber", label: "Store Number", required: true },
-    { key: "name", label: "Name", required: true },
-    { key: "phone", label: "Phone", required: true },
-    { key: "companyName", label: "Company Name", required: true },
-    { key: "address", label: "Address", required: true },
+    { key: "name", label: "Name (optional)" },
+    { key: "phone", label: "Phone (optional)" },
+    { key: "companyName", label: "Company Name (optional)" },
+    { key: "address", label: "Address (optional)" },
     { key: "gstNumber", label: "GST Number (optional)" },
-    { key: "email", label: "Email", type: "email", required: true },
-    { key: "password", label: "Password", required: true },
+    { key: "email", label: "Email (optional)", type: "email" },
+    { key: "password", label: "Password (optional)" },
   ];
 
   return (
@@ -296,11 +355,15 @@ export default function Customers() {
         <CardHeader>
           <CardTitle className="font-heading text-base flex items-center gap-2">
             <FileSpreadsheet className="w-4 h-4 text-primary" />
-            Upload Customer Data
+            Customer Data Management
           </CardTitle>
           <CardDescription>
-            Upload a CSV or Excel file with customer details. Required columns:
-            Store Number, Name, Phone, Company Name, Address, Email, Password.
+            Upload new customers via CSV/Excel, download existing data, or add
+            customers one at a time.{" "}
+            <strong>Store Number is the only mandatory field</strong> — rows
+            missing a Store Number are skipped. All other fields are optional.
+            Uploading adds NEW customers only — existing records are not
+            changed.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-3">
@@ -308,6 +371,7 @@ export default function Customers() {
             variant="outline"
             onClick={downloadTemplate}
             className="gap-2"
+            data-ocid="customers.template.button"
           >
             <Download className="w-4 h-4" />
             Download Template
@@ -324,6 +388,7 @@ export default function Customers() {
               onClick={() => fileRef.current?.click()}
               disabled={isUploading || !actor}
               className="gap-2"
+              data-ocid="customers.upload.button"
             >
               {isUploading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -340,10 +405,20 @@ export default function Customers() {
               setIsAddDialogOpen(true);
             }}
             className="gap-2"
-            data-ocid="customers.add_manual_button"
+            data-ocid="customers.add_manual.button"
           >
             <UserPlus className="w-4 h-4" />
             Add Customer Manually
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleDownloadCustomerData}
+            disabled={customers.length === 0}
+            className="gap-2 border-green-200 text-green-700 hover:bg-green-50"
+            data-ocid="customers.download_data.button"
+          >
+            <Database className="w-4 h-4" />
+            Customer Data Download
           </Button>
         </CardContent>
       </Card>
@@ -369,7 +444,10 @@ export default function Customers() {
               ))}
             </div>
           ) : customers.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
+            <div
+              className="text-center py-12 text-muted-foreground"
+              data-ocid="customers.list.empty_state"
+            >
               <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
               <p className="text-sm">
                 No customers yet. Upload a CSV file to get started.
@@ -398,16 +476,20 @@ export default function Customers() {
                     <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       GST
                     </th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Status
+                    </th>
                     <th className="text-right px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {customers.map((customer) => (
+                  {customers.map((customer, idx) => (
                     <tr
                       key={customer.storeNumber}
                       className="border-b border-border/50 hover:bg-muted/40 transition-colors"
+                      data-ocid={`customers.list.item.${idx + 1}`}
                     >
                       <td className="px-6 py-3 font-mono font-semibold text-primary">
                         {customer.storeNumber}
@@ -433,6 +515,29 @@ export default function Customers() {
                           </span>
                         )}
                       </td>
+                      {/* Active / On Hold toggle */}
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col items-center gap-1">
+                          <Switch
+                            checked={customer.active !== false}
+                            onCheckedChange={() => {
+                              setTogglingStoreNumber(customer.storeNumber);
+                              toggleCustomerMutation.mutate(
+                                customer.storeNumber,
+                              );
+                            }}
+                            disabled={
+                              togglingStoreNumber === customer.storeNumber
+                            }
+                            data-ocid="customers.customer.toggle"
+                          />
+                          <span
+                            className={`text-[10px] font-medium ${customer.active !== false ? "text-success" : "text-amber-600"}`}
+                          >
+                            {customer.active !== false ? "Active" : "On Hold"}
+                          </span>
+                        </div>
+                      </td>
                       <td className="px-6 py-3 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <Button
@@ -440,6 +545,7 @@ export default function Customers() {
                             variant="outline"
                             className="h-7 gap-1.5 text-xs"
                             onClick={() => openEdit(customer)}
+                            data-ocid="customers.customer.edit_button"
                           >
                             <Pencil className="w-3 h-3" />
                             Edit
@@ -452,6 +558,7 @@ export default function Customers() {
                             disabled={
                               deletingStoreNumber === customer.storeNumber
                             }
+                            data-ocid="customers.customer.delete_button"
                           >
                             {deletingStoreNumber === customer.storeNumber ? (
                               <Loader2 className="w-3 h-3 animate-spin" />
@@ -480,7 +587,7 @@ export default function Customers() {
             setAddForm(emptyForm);
           }
         }}
-        data-ocid="customers.add_dialog"
+        data-ocid="customers.add.dialog"
       >
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -488,8 +595,8 @@ export default function Customers() {
               Add Customer Manually
             </DialogTitle>
             <DialogDescription>
-              Fill in the customer details below. Store Number and Email must be
-              unique.
+              Only Store Number is required. All other fields are optional and
+              can be filled in later via Edit.
             </DialogDescription>
           </DialogHeader>
 
@@ -555,6 +662,7 @@ export default function Customers() {
         onOpenChange={(open) => {
           if (!open) setEditingCustomer(null);
         }}
+        data-ocid="customers.edit.dialog"
       >
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -586,6 +694,7 @@ export default function Customers() {
                   }
                   className="h-9 text-sm"
                   placeholder={label}
+                  data-ocid={`customers.edit.${key.replace(/([A-Z])/g, (m) => `_${m.toLowerCase()}`)}_input`}
                 />
               </div>
             ))}
@@ -596,6 +705,7 @@ export default function Customers() {
               variant="outline"
               onClick={() => setEditingCustomer(null)}
               disabled={isSaving}
+              data-ocid="customers.edit.cancel_button"
             >
               Cancel
             </Button>
@@ -603,6 +713,7 @@ export default function Customers() {
               onClick={handleSaveEdit}
               disabled={isSaving}
               className="gap-2"
+              data-ocid="customers.edit.save_button"
             >
               {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               {isSaving ? "Saving..." : "Save Changes"}

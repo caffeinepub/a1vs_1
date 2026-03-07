@@ -13,10 +13,10 @@ import { useMutation } from "@tanstack/react-query";
 import { Link2, Loader2, Lock, Save } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { useActor } from "../../hooks/useActor";
+import { useExtendedActor } from "../../hooks/useExtendedActor";
 
 export default function Settings() {
-  const { actor } = useActor();
+  const { actor } = useExtendedActor();
   const token = localStorage.getItem("a1vs_admin_token") ?? "";
 
   const [webhookUrl, setWebhookUrl] = useState("");

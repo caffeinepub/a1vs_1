@@ -42,13 +42,9 @@ import {
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import type {
-  CompanyProfile,
-  Customer,
-  Payment,
-  StatementEntry,
-} from "../../backend.d";
-import { useActor } from "../../hooks/useActor";
+import type { CompanyProfile, Customer } from "../../backend.d";
+import { useExtendedActor } from "../../hooks/useExtendedActor";
+import type { Payment, StatementEntry } from "../../types/appTypes";
 import { generateStatementPDF } from "../../utils/pdfUtils";
 
 function formatDate(timestamp: bigint | number): string {
@@ -101,7 +97,7 @@ function computeRunningBalance(
 
 // Customer Statement Tab
 function CustomerStatementTab() {
-  const { actor, isFetching } = useActor();
+  const { actor, isFetching } = useExtendedActor();
   const token = localStorage.getItem("a1vs_admin_token") ?? "";
   const [selectedStore, setSelectedStore] = useState("");
   const [fromDate, setFromDate] = useState(() => {
@@ -147,12 +143,18 @@ function CustomerStatementTab() {
     try {
       const from = toNano(new Date(`${fromDate}T00:00:00`));
       const to = toNano(new Date(`${toDate}T23:59:59`));
-      const data = await actor.getCustomerStatement(
-        token,
-        selectedStore,
-        from,
-        to,
-      );
+      let data: StatementEntry[] = [];
+      try {
+        data = await actor.getCustomerStatement(token, selectedStore, from, to);
+      } catch (err) {
+        if (err instanceof Error && err.message.includes("is not a function")) {
+          toast.error(
+            "Statement feature requires backend update. Please contact support.",
+          );
+          return;
+        }
+        throw err;
+      }
       setEntries(
         data.sort((a, b) => Number(a.entryDate) - Number(b.entryDate)),
       );
@@ -360,7 +362,7 @@ function CustomerStatementTab() {
 
 // Company Statement Tab
 function CompanyStatementTab() {
-  const { actor, isFetching } = useActor();
+  const { actor, isFetching } = useExtendedActor();
   const token = localStorage.getItem("a1vs_admin_token") ?? "";
   const [fromDate, setFromDate] = useState(() => {
     const d = new Date();
@@ -392,7 +394,18 @@ function CompanyStatementTab() {
     try {
       const from = toNano(new Date(`${fromDate}T00:00:00`));
       const to = toNano(new Date(`${toDate}T23:59:59`));
-      const data = await actor.getCompanyStatement(token, from, to);
+      let data: StatementEntry[] = [];
+      try {
+        data = await actor.getCompanyStatement(token, from, to);
+      } catch (err) {
+        if (err instanceof Error && err.message.includes("is not a function")) {
+          toast.error(
+            "Company statement feature requires backend update. Please contact support.",
+          );
+          return;
+        }
+        throw err;
+      }
       setEntries(
         data.sort((a, b) => Number(a.entryDate) - Number(b.entryDate)),
       );
@@ -589,7 +602,7 @@ function CompanyStatementTab() {
 
 // Payment Feed Tab
 function PaymentFeedTab() {
-  const { actor, isFetching } = useActor();
+  const { actor, isFetching } = useExtendedActor();
   const token = localStorage.getItem("a1vs_admin_token") ?? "";
   const qc = useQueryClient();
 
@@ -630,7 +643,13 @@ function PaymentFeedTab() {
     Payment[]
   >({
     queryKey: ["all-payments", token],
-    queryFn: () => actor!.getAllPayments(token),
+    queryFn: async () => {
+      try {
+        return await actor!.getAllPayments(token);
+      } catch {
+        return [];
+      }
+    },
     enabled: !!actor && !isFetching && !!token,
   });
 
@@ -654,20 +673,29 @@ function PaymentFeedTab() {
   };
 
   const addPaymentMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       const amtNum = Number.parseFloat(amount);
       if (Number.isNaN(amtNum) || amtNum <= 0)
         throw new Error("Invalid amount");
-      return actor!.addPayment(
-        token,
-        selectedStore,
-        selectedCustomer?.companyName ?? "",
-        amtNum,
-        paymentMethod,
-        paymentMethod === "cheque" ? chequeDetails : null,
-        paymentMethod === "online" ? utrDetails : null,
-        paymentAdviceImage,
-      );
+      try {
+        return await actor!.addPayment(
+          token,
+          selectedStore,
+          selectedCustomer?.companyName ?? "",
+          amtNum,
+          paymentMethod,
+          paymentMethod === "cheque" ? chequeDetails : null,
+          paymentMethod === "online" ? utrDetails : null,
+          paymentAdviceImage,
+        );
+      } catch (err) {
+        if (err instanceof Error && err.message.includes("is not a function")) {
+          throw new Error(
+            "Payment recording is not yet available. Please update the backend.",
+          );
+        }
+        throw err;
+      }
     },
     onSuccess: () => {
       toast.success("Payment recorded successfully");
@@ -686,22 +714,31 @@ function PaymentFeedTab() {
   });
 
   const editPaymentMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       if (!editingPayment) throw new Error("No payment selected");
       const amtNum = Number.parseFloat(editAmount);
       if (Number.isNaN(amtNum) || amtNum <= 0)
         throw new Error("Invalid amount");
-      return actor!.editPayment(
-        token,
-        editingPayment.paymentId,
-        editStore,
-        editCompanyName,
-        amtNum,
-        editPaymentMethod,
-        editPaymentMethod === "cheque" ? editChequeDetails || null : null,
-        editPaymentMethod === "online" ? editUtrDetails || null : null,
-        editAdviceImage,
-      );
+      try {
+        return await actor!.editPayment(
+          token,
+          editingPayment.paymentId,
+          editStore,
+          editCompanyName,
+          amtNum,
+          editPaymentMethod,
+          editPaymentMethod === "cheque" ? editChequeDetails || null : null,
+          editPaymentMethod === "online" ? editUtrDetails || null : null,
+          editAdviceImage,
+        );
+      } catch (err) {
+        if (err instanceof Error && err.message.includes("is not a function")) {
+          throw new Error(
+            "Edit payment is not yet available. Please update the backend.",
+          );
+        }
+        throw err;
+      }
     },
     onSuccess: () => {
       toast.success("Payment updated");
@@ -718,14 +755,23 @@ function PaymentFeedTab() {
   });
 
   const deletePaymentMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       if (!deletingPayment) throw new Error("No payment selected");
       if (!deletePaymentReason.trim()) throw new Error("Reason is required");
-      return actor!.deletePayment(
-        token,
-        deletingPayment.paymentId,
-        deletePaymentReason.trim(),
-      );
+      try {
+        return await actor!.deletePayment(
+          token,
+          deletingPayment.paymentId,
+          deletePaymentReason.trim(),
+        );
+      } catch (err) {
+        if (err instanceof Error && err.message.includes("is not a function")) {
+          throw new Error(
+            "Delete payment is not yet available. Please update the backend.",
+          );
+        }
+        throw err;
+      }
     },
     onSuccess: () => {
       toast.success("Payment deleted");
@@ -1034,7 +1080,7 @@ function PaymentFeedTab() {
                         <button
                           type="button"
                           onClick={() =>
-                            setLightboxImage(payment.paymentAdviceImage)
+                            setLightboxImage(payment.paymentAdviceImage ?? null)
                           }
                           title="View payment advice"
                         >

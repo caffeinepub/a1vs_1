@@ -19,8 +19,9 @@ import {
   User,
   Wallet,
 } from "lucide-react";
-import type { Order, StatementEntry } from "../../backend.d";
-import { useActor } from "../../hooks/useActor";
+import type { Order } from "../../backend.d";
+import { useExtendedActor } from "../../hooks/useExtendedActor";
+import type { StatementEntry } from "../../types/appTypes";
 
 interface RiderAssignment {
   riderEmail: string;
@@ -197,7 +198,7 @@ function OrderTracker({ order }: { order: Order }) {
 
 export default function CustomerDashboard() {
   const navigate = useNavigate();
-  const { actor, isFetching } = useActor();
+  const { actor, isFetching } = useExtendedActor();
 
   const storeNumber = localStorage.getItem("a1vs_store_number") ?? "";
   const companyName = localStorage.getItem("a1vs_company_name") ?? "";
@@ -212,8 +213,18 @@ export default function CustomerDashboard() {
   const { data: statementEntries = [], isLoading: isStatementLoading } =
     useQuery<StatementEntry[]>({
       queryKey: ["my-statement", storeNumber, token],
-      queryFn: () =>
-        actor!.getMyStatement(token, 0n, BigInt(Date.now()) * 1_000_000n),
+      queryFn: async () => {
+        try {
+          return await actor!.getMyStatement(
+            token,
+            0n,
+            BigInt(Date.now()) * 1_000_000n,
+          );
+        } catch {
+          // getMyStatement not available, return empty array
+          return [];
+        }
+      },
       enabled: !!actor && !isFetching && !!token && !!storeNumber,
     });
 

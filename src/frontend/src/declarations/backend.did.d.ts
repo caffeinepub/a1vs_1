@@ -18,6 +18,17 @@ export interface CompanyProfile {
   'contactPhone' : string,
 }
 export interface Customer {
+  'active' : boolean,
+  'storeNumber' : string,
+  'gstNumber' : [] | [string],
+  'password' : string,
+  'name' : string,
+  'email' : string,
+  'address' : string,
+  'companyName' : string,
+  'phone' : string,
+}
+export interface CustomerInput {
   'storeNumber' : string,
   'gstNumber' : [] | [string],
   'password' : string,
@@ -53,19 +64,6 @@ export interface OrderItem {
   'productId' : bigint,
   'productName' : string,
 }
-export interface Payment {
-  'deleted' : boolean,
-  'paymentMethod' : string,
-  'paymentAdviceImage' : string,
-  'storeNumber' : string,
-  'deleteReason' : [] | [string],
-  'utrDetails' : [] | [string],
-  'paymentId' : string,
-  'timestamp' : Time,
-  'companyName' : string,
-  'amount' : number,
-  'chequeDetails' : [] | [string],
-}
 export interface Product {
   'id' : bigint,
   'active' : boolean,
@@ -80,99 +78,25 @@ export interface ProductInput {
   'unit' : string,
   'imageBase64' : [] | [string],
 }
-export interface RiderAssignment {
-  'orderId' : string,
-  'riderEmail' : string,
-  'riderPhone' : string,
-  'riderName' : string,
-}
-export interface RiderProfile {
-  'name' : string,
-  'email' : string,
-  'phone' : string,
-}
-export interface StatementEntry {
-  'entryDate' : Time,
-  'entryType' : string,
-  'referenceNumber' : string,
-  'storeNumber' : string,
-  'credit' : number,
-  'companyName' : string,
-  'debit' : number,
-}
-export interface SubUser {
-  'roleText' : string,
-  'active' : boolean,
-  'password' : string,
-  'email' : string,
-}
 export type Time = bigint;
 export type UserRole = { 'manager' : null } |
   { 'admin' : null } |
   { 'accounts' : null };
 export interface _SERVICE {
-  'addCustomer' : ActorMethod<[string, Customer], undefined>,
-  'addPayment' : ActorMethod<
-    [
-      string,
-      string,
-      string,
-      number,
-      string,
-      [] | [string],
-      [] | [string],
-      string,
-    ],
-    undefined
-  >,
+  'addCustomer' : ActorMethod<[string, CustomerInput], undefined>,
+  'addCustomersOnly' : ActorMethod<[string, Array<CustomerInput>], undefined>,
   'adminLogin' : ActorMethod<[string, string], string>,
-  'assignRider' : ActorMethod<
-    [string, string, string, string, string],
-    undefined
-  >,
   'changeAdminPassword' : ActorMethod<[string, string], undefined>,
-  'changeSubUserPassword' : ActorMethod<[string, string, string], undefined>,
   'createSubUser' : ActorMethod<[string, string, UserRole], undefined>,
-  'createSubUserWithPassword' : ActorMethod<
-    [string, string, string, string],
-    undefined
-  >,
   'customerLogin' : ActorMethod<[string, string], string>,
   'deleteCustomer' : ActorMethod<[string, string], undefined>,
-  'deleteOrder' : ActorMethod<[string, string, string], undefined>,
-  'deletePayment' : ActorMethod<[string, string, string], undefined>,
   'editOrderItems' : ActorMethod<[string, string, Array<OrderItem>], undefined>,
-  'editPayment' : ActorMethod<
-    [
-      string,
-      string,
-      string,
-      string,
-      number,
-      string,
-      [] | [string],
-      [] | [string],
-      string,
-    ],
-    undefined
-  >,
   'getActiveProducts' : ActorMethod<[], Array<Product>>,
-  'getAdminRole' : ActorMethod<[string], string>,
-  'getAdminStatus' : ActorMethod<[string], boolean>,
-  'getAllCustomerOrders' : ActorMethod<[string], Array<Order>>,
-  'getAllCustomerPayments' : ActorMethod<[string], Array<Payment>>,
   'getAllCustomers' : ActorMethod<[string], Array<Customer>>,
   'getAllOrders' : ActorMethod<[string], Array<Order>>,
-  'getAllPayments' : ActorMethod<[string], Array<Payment>>,
   'getAllProducts' : ActorMethod<[string], Array<Product>>,
-  'getAllRiderAssignments' : ActorMethod<[string], Array<RiderAssignment>>,
-  'getAllRiderProfiles' : ActorMethod<[string], Array<RiderProfile>>,
-  'getAllSubUsers' : ActorMethod<[string], Array<SubUser>>,
+  'getAllProductsPublic' : ActorMethod<[], Array<Product>>,
   'getCompanyProfile' : ActorMethod<[], CompanyProfile>,
-  'getCompanyStatement' : ActorMethod<
-    [string, bigint, bigint],
-    Array<StatementEntry>
-  >,
   'getCustomer' : ActorMethod<
     [string],
     [] | [
@@ -184,24 +108,7 @@ export interface _SERVICE {
       }
     ]
   >,
-  'getCustomerStatement' : ActorMethod<
-    [string, string, bigint, bigint],
-    Array<StatementEntry>
-  >,
-  'getMyStatement' : ActorMethod<
-    [string, bigint, bigint],
-    Array<StatementEntry>
-  >,
   'getOrdersByStore' : ActorMethod<[string, string], Array<Order>>,
-  'getOrdersForRider' : ActorMethod<[string, string], Array<Order>>,
-  'getPaymentsByStore' : ActorMethod<[string, string], Array<Payment>>,
-  'getRiderAssignment' : ActorMethod<[string, string], [] | [RiderAssignment]>,
-  'getRiderProfile' : ActorMethod<[string, string], [] | [RiderProfile]>,
-  'getWebhookUrl' : ActorMethod<[string], string>,
-  'markOrderDeliveredWithSignature' : ActorMethod<
-    [string, string, string],
-    undefined
-  >,
   'placeOrder' : ActorMethod<
     [string, string, string, string, Array<OrderItem>],
     string
@@ -210,22 +117,19 @@ export interface _SERVICE {
     [string, string, string, string, [] | [string], Array<OrderItem>, string],
     string
   >,
-  'replaceCustomers' : ActorMethod<[string, Array<Customer>], undefined>,
+  'replaceCustomers' : ActorMethod<[string, Array<CustomerInput>], undefined>,
   'replaceProducts' : ActorMethod<[string, Array<string>], undefined>,
   'replaceProductsWithDetails' : ActorMethod<
     [string, Array<ProductInput>],
     undefined
   >,
-  'saveRiderProfile' : ActorMethod<[string, string, string, string], undefined>,
+  'setAllProductsActive' : ActorMethod<[string, boolean], undefined>,
   'setCompanyProfile' : ActorMethod<[string, CompanyProfile], undefined>,
-  'setWebhookUrl' : ActorMethod<[string, string], undefined>,
   'subUserLogin' : ActorMethod<[string, string], string>,
-  'subUserLoginV2' : ActorMethod<[string, string], string>,
+  'toggleCustomerActive' : ActorMethod<[string, string], undefined>,
   'toggleProduct' : ActorMethod<[string, bigint], undefined>,
-  'toggleSubUser' : ActorMethod<[string, string], undefined>,
-  'updateCustomer' : ActorMethod<[string, string, Customer], undefined>,
+  'updateCustomer' : ActorMethod<[string, string, CustomerInput], undefined>,
   'updateOrderStatus' : ActorMethod<[string, string, string], undefined>,
-  'updateOrderStatusRider' : ActorMethod<[string, string, string], undefined>,
   'updateProductImage' : ActorMethod<[string, bigint, string], undefined>,
   'updateProductRate' : ActorMethod<[string, bigint, number], undefined>,
 }

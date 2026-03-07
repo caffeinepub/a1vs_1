@@ -1,4 +1,5 @@
-import type { Order, StatementEntry } from "../backend.d";
+import type { Order } from "../backend.d";
+import type { StatementEntry } from "../types/appTypes";
 import { autoTable, newPDF } from "./pdfShim";
 
 // ─── Company profile type ─────────────────────────────────────────────────────

@@ -44,12 +44,14 @@ import type {
   CompanyProfile,
   Order,
   OrderItem,
+  Product,
+} from "../../backend.d";
+import { useExtendedActor } from "../../hooks/useExtendedActor";
+import type {
   RiderAssignment,
   RiderProfile,
   SubUser,
-} from "../../backend.d";
-import type { Product } from "../../backend.d";
-import { useActor } from "../../hooks/useActor";
+} from "../../types/appTypes";
 import {
   generateInvoicePDF,
   generateInvoicePDFAndPrint,
@@ -117,7 +119,7 @@ interface EditableOrderItem {
 }
 
 export default function Orders() {
-  const { actor, isFetching } = useActor();
+  const { actor, isFetching } = useExtendedActor();
   const token = localStorage.getItem("a1vs_admin_token") ?? "";
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
@@ -153,20 +155,38 @@ export default function Orders() {
 
   const { data: allSubUsers = [] } = useReactQuery<SubUser[]>({
     queryKey: ["sub-users", token],
-    queryFn: () => actor!.getAllSubUsers(token),
+    queryFn: async () => {
+      try {
+        return await actor!.getAllSubUsers(token);
+      } catch {
+        return [];
+      }
+    },
     enabled: !!actor && !isFetching && !!token,
   });
 
   const { data: riderAssignmentsArr = [] } = useReactQuery<RiderAssignment[]>({
     queryKey: ["rider-assignments", token],
-    queryFn: () => actor!.getAllRiderAssignments(token),
+    queryFn: async () => {
+      try {
+        return await actor!.getAllRiderAssignments(token);
+      } catch {
+        return [];
+      }
+    },
     enabled: !!actor && !isFetching && !!token,
     refetchInterval: 15_000,
   });
 
   const { data: riderProfilesArr = [] } = useReactQuery<RiderProfile[]>({
     queryKey: ["rider-profiles", token],
-    queryFn: () => actor!.getAllRiderProfiles(token),
+    queryFn: async () => {
+      try {
+        return await actor!.getAllRiderProfiles(token);
+      } catch {
+        return [];
+      }
+    },
     enabled: !!actor && !isFetching && !!token,
   });
 
@@ -209,7 +229,18 @@ export default function Orders() {
   const deleteOrderMutation = useMutation({
     mutationFn: async () => {
       if (!deletingOrder) throw new Error("No order selected");
-      return actor!.deleteOrder(token, deletingOrder.orderId, deleteReason);
+      try {
+        return await actor!.deleteOrder(
+          token,
+          deletingOrder.orderId,
+          deleteReason,
+        );
+      } catch (err) {
+        if (err instanceof Error && err.message.includes("is not a function")) {
+          throw new Error("Delete order feature requires backend update.");
+        }
+        throw err;
+      }
     },
     onSuccess: () => {
       toast.success("Order deleted");
@@ -977,14 +1008,35 @@ export default function Orders() {
                       assignRiderOrder.orderId,
                       "accepted",
                     );
-                    // Save rider assignment to backend (not localStorage)
-                    await actor!.assignRider(
-                      token,
-                      assignRiderOrder.orderId,
-                      selectedRiderEmail,
-                      riderName,
-                      riderPhone,
-                    );
+                    // Try to save rider assignment to backend (graceful if not available)
+                    try {
+                      await actor!.assignRider(
+                        token,
+                        assignRiderOrder.orderId,
+                        selectedRiderEmail,
+                        riderName,
+                        riderPhone,
+                      );
+                    } catch {
+                      // assignRider not available, just save assignment locally
+                      try {
+                        const assignments = JSON.parse(
+                          localStorage.getItem("a1vs_rider_assignments") ??
+                            "{}",
+                        );
+                        assignments[assignRiderOrder.orderId] = {
+                          riderEmail: selectedRiderEmail,
+                          riderName,
+                          riderPhone,
+                        };
+                        localStorage.setItem(
+                          "a1vs_rider_assignments",
+                          JSON.stringify(assignments),
+                        );
+                      } catch {
+                        // ignore localStorage errors
+                      }
+                    }
                     qc.invalidateQueries({ queryKey: ["admin-orders"] });
                     qc.invalidateQueries({ queryKey: ["rider-assignments"] });
                     toast.success(

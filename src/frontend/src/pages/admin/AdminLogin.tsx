@@ -13,7 +13,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Loader2, ShieldCheck, Truck, UserCog } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { useActor } from "../../hooks/useActor";
+import { useExtendedActor } from "../../hooks/useExtendedActor";
 import {
   getFriendlyErrorMessage,
   isCanisterUnavailableError,
@@ -31,7 +31,7 @@ export default function AdminLogin() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubLoading, setIsSubLoading] = useState(false);
   const [isRiderLoading, setIsRiderLoading] = useState(false);
-  const { actor } = useActor();
+  const { actor } = useExtendedActor();
   const navigate = useNavigate();
 
   if (localStorage.getItem("a1vs_admin_token")) {
@@ -85,37 +85,8 @@ export default function AdminLogin() {
   const attemptSubUserLogin = async (retries = 3): Promise<void> => {
     if (!actor) return;
     try {
-      const token = await actor.subUserLoginV2(subEmail, subPassword);
-      // Check if sub-user is actually a rider
-      try {
-        const allUsers = await actor.getAllSubUsers(token);
-        const found = allUsers.find(
-          (u) => u.email.toLowerCase() === subEmail.toLowerCase(),
-        );
-        if (found?.roleText === "rider") {
-          let riderName = subEmail;
-          let riderPhone = "";
-          try {
-            const profile = await actor.getRiderProfile(token, subEmail);
-            if (profile) {
-              riderName = profile.name || subEmail;
-              riderPhone = profile.phone || "";
-            }
-          } catch {
-            // fall back to email
-          }
-          localStorage.setItem("a1vs_rider_token", token);
-          localStorage.setItem("a1vs_rider_email", subEmail);
-          localStorage.setItem("a1vs_rider_name", riderName);
-          localStorage.setItem("a1vs_rider_phone", riderPhone);
-          localStorage.setItem("a1vs_rider_role", "rider");
-          toast.success("Welcome, Rider! Loading your dashboard...");
-          navigate({ to: "/rider" });
-          return;
-        }
-      } catch {
-        // If we can't check role, fall through to admin
-      }
+      // Use the subUserLogin function that exists in the backend
+      const token = await actor.subUserLogin(subEmail, subPassword);
       localStorage.setItem("a1vs_admin_token", token);
       localStorage.setItem("a1vs_admin_role", "subUser");
       toast.success("Logged in successfully");
@@ -154,30 +125,13 @@ export default function AdminLogin() {
   const attemptRiderLogin = async (retries = 3): Promise<void> => {
     if (!actor) return;
     try {
-      const token = await actor.subUserLoginV2(riderEmail, riderPassword);
-      const allUsers = await actor.getAllSubUsers(token);
-      const found = allUsers.find(
-        (u) => u.email.toLowerCase() === riderEmail.toLowerCase(),
-      );
-      if (!found || found.roleText !== "rider") {
-        toast.error("This account is not a Rider account. Use Staff login.");
-        return;
-      }
-      let riderName = riderEmail;
-      let riderPhone = "";
-      try {
-        const profile = await actor.getRiderProfile(token, riderEmail);
-        if (profile) {
-          riderName = profile.name || riderEmail;
-          riderPhone = profile.phone || "";
-        }
-      } catch {
-        // fall back to email
-      }
+      // Use the subUserLogin function that exists in the backend
+      // For riders, phone number is the email/login ID stored in backend
+      const token = await actor.subUserLogin(riderEmail, riderPassword);
       localStorage.setItem("a1vs_rider_token", token);
       localStorage.setItem("a1vs_rider_email", riderEmail);
-      localStorage.setItem("a1vs_rider_name", riderName);
-      localStorage.setItem("a1vs_rider_phone", riderPhone);
+      localStorage.setItem("a1vs_rider_name", riderEmail); // phone as fallback name
+      localStorage.setItem("a1vs_rider_phone", riderEmail);
       localStorage.setItem("a1vs_rider_role", "rider");
       toast.success("Welcome, Rider! Loading your dashboard...");
       navigate({ to: "/rider" });
@@ -188,7 +142,7 @@ export default function AdminLogin() {
       }
       const message = getFriendlyErrorMessage(
         err,
-        "Invalid credentials. Please check your email and password.",
+        "Invalid credentials. Please check your phone number and password.",
       );
       toast.error(message);
     }

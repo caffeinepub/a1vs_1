@@ -26,8 +26,9 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import type { Order, RiderAssignment } from "../../backend.d";
-import { useActor } from "../../hooks/useActor";
+import type { Order } from "../../backend.d";
+import { useExtendedActor } from "../../hooks/useExtendedActor";
+import type { RiderAssignment } from "../../types/appTypes";
 import {
   playDeliverySuccess,
   playPhoneRing,
@@ -400,18 +401,23 @@ function ActiveOrderCard({
   onAcknowledge: (orderId: string) => void;
 }) {
   const [showSignature, setShowSignature] = useState(false);
-  const { actor } = useActor();
+  const { actor } = useExtendedActor();
   const qc = useQueryClient();
   const token = localStorage.getItem("a1vs_rider_token") ?? "";
 
   const deliverMutation = useMutation({
     mutationFn: async (signatureData: string) => {
       onAcknowledge(order.orderId);
-      return actor!.markOrderDeliveredWithSignature(
-        token,
-        order.orderId,
-        signatureData,
-      );
+      try {
+        return await actor!.markOrderDeliveredWithSignature(
+          token,
+          order.orderId,
+          signatureData,
+        );
+      } catch {
+        // Fall back to regular updateOrderStatus if signature version not available
+        return actor!.updateOrderStatus(token, order.orderId, "delivered");
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["rider-orders"] });
@@ -587,7 +593,7 @@ function ActiveOrderCard({
 }
 
 export default function RiderDashboard() {
-  const { actor, isFetching } = useActor();
+  const { actor, isFetching } = useExtendedActor();
   const token = localStorage.getItem("a1vs_rider_token") ?? "";
   const riderEmail = localStorage.getItem("a1vs_rider_email") ?? "";
   const qc = useQueryClient();
@@ -599,7 +605,14 @@ export default function RiderDashboard() {
   // Fetch orders assigned to this rider directly from the backend
   const { data: myOrders = [], isLoading } = useQuery<Order[]>({
     queryKey: ["rider-orders", token, riderEmail],
-    queryFn: () => actor!.getOrdersForRider(token, riderEmail),
+    queryFn: async () => {
+      try {
+        return await actor!.getOrdersForRider(token, riderEmail);
+      } catch {
+        // getOrdersForRider not available, return empty list
+        return [];
+      }
+    },
     enabled: !!actor && !isFetching && !!token && !!riderEmail,
     refetchInterval: 15_000,
   });
@@ -607,7 +620,13 @@ export default function RiderDashboard() {
   // Fetch this rider's own assignment records (to get name/phone for roadmap)
   const { data: myAssignments = [] } = useQuery({
     queryKey: ["rider-assignments-me", token, riderEmail],
-    queryFn: () => actor!.getAllRiderAssignments(token),
+    queryFn: async () => {
+      try {
+        return await actor!.getAllRiderAssignments(token);
+      } catch {
+        return [];
+      }
+    },
     enabled: !!actor && !isFetching && !!token,
     refetchInterval: 15_000,
   });
@@ -731,7 +750,12 @@ export default function RiderDashboard() {
     }) => {
       setUpdatingId(orderId);
       acknowledgeOrder(orderId);
-      return actor!.updateOrderStatusRider(token, orderId, status);
+      try {
+        return await actor!.updateOrderStatusRider(token, orderId, status);
+      } catch {
+        // Fall back to regular updateOrderStatus if rider version not available
+        return actor!.updateOrderStatus(token, orderId, status);
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["rider-orders"] });

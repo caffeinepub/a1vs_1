@@ -37,6 +37,7 @@ export default function StoreSelectorPage() {
   const [storeInfo, setStoreInfo] = useState<StoreInfo | null>(null);
   const [isFindingStore, setIsFindingStore] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [accountOnHold, setAccountOnHold] = useState(false);
 
   // Check if already logged in
   const isLoggedIn = !!localStorage.getItem("a1vs_customer_token");
@@ -103,6 +104,16 @@ export default function StoreSelectorPage() {
       if (isCanisterUnavailableError(err) && retries > 0) {
         await new Promise((r) => setTimeout(r, 2000));
         return attemptLogin(retries - 1);
+      }
+      const errMsg = err instanceof Error ? err.message : String(err);
+      // Check for account-on-hold error
+      if (
+        errMsg.includes("ACCOUNT_HOLD") ||
+        (errMsg.toLowerCase().includes("account") &&
+          errMsg.toLowerCase().includes("hold"))
+      ) {
+        setAccountOnHold(true);
+        return;
       }
       const msg = getFriendlyErrorMessage(
         err,
@@ -402,6 +413,29 @@ export default function StoreSelectorPage() {
                       </div>
                     </div>
 
+                    {/* Account On Hold message */}
+                    {accountOnHold && (
+                      <div
+                        className="bg-red-50 border border-red-200 rounded-xl p-4 mb-1"
+                        data-ocid="login.account_hold.error_state"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
+                            <Store className="w-4 h-4 text-red-600" />
+                          </div>
+                          <div>
+                            <p className="font-heading font-semibold text-sm text-red-800">
+                              Account On Hold
+                            </p>
+                            <p className="text-xs text-red-700 mt-1 leading-relaxed">
+                              Your account is on hold. Please talk to the Admin
+                              regarding your customer portal activation.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     <form onSubmit={handleLogin} className="space-y-4">
                       <div className="space-y-2">
                         <Label htmlFor="password">Password</Label>
@@ -410,7 +444,10 @@ export default function StoreSelectorPage() {
                           type="password"
                           placeholder="Enter your store password"
                           value={password}
-                          onChange={(e) => setPassword(e.target.value)}
+                          onChange={(e) => {
+                            setPassword(e.target.value);
+                            if (accountOnHold) setAccountOnHold(false);
+                          }}
                           disabled={isLoggingIn}
                           className="h-11"
                           autoFocus

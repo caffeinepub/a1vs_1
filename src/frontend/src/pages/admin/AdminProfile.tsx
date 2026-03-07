@@ -23,10 +23,10 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { CompanyProfile } from "../../backend.d";
-import { useActor } from "../../hooks/useActor";
+import { useExtendedActor } from "../../hooks/useExtendedActor";
 
 export default function AdminProfile() {
-  const { actor, isFetching } = useActor();
+  const { actor, isFetching } = useExtendedActor();
   const qc = useQueryClient();
   const token = localStorage.getItem("a1vs_admin_token") ?? "";
   const role = localStorage.getItem("a1vs_admin_role") ?? "masterAdmin";

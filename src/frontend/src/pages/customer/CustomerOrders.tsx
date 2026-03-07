@@ -6,7 +6,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { FileText, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
 import type { CompanyProfile, Order } from "../../backend.d";
-import { useActor } from "../../hooks/useActor";
+import { useExtendedActor } from "../../hooks/useExtendedActor";
 import { generateInvoicePDF } from "../../utils/pdfUtils";
 
 function formatDate(timestamp: bigint) {
@@ -47,7 +47,7 @@ function StatusBadge({ status }: { status: string }) {
 
 export default function CustomerOrders() {
   const navigate = useNavigate();
-  const { actor, isFetching } = useActor();
+  const { actor, isFetching } = useExtendedActor();
 
   const storeNumber = localStorage.getItem("a1vs_store_number") ?? "";
   const companyName = localStorage.getItem("a1vs_company_name") ?? "";

@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  AlertTriangle,
   Camera,
   Check,
   Download,
@@ -19,9 +20,12 @@ import {
   Loader2,
   Package,
   Pencil,
+  PowerOff,
   RefreshCw,
+  Search,
   Upload,
   X,
+  Zap,
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -147,14 +151,22 @@ export default function Products() {
   const [isLoadingDefaults, setIsLoadingDefaults] = useState(false);
   const [editingRateId, setEditingRateId] = useState<string | null>(null);
   const [editingRateValue, setEditingRateValue] = useState<string>("");
+  const [productSearch, setProductSearch] = useState("");
   // Per-product image upload state
   const [uploadingImageId, setUploadingImageId] = useState<string | null>(null);
   const imageFileRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const { data: products = [], isLoading } = useQuery<Product[]>({
-    queryKey: ["admin-products", token],
-    queryFn: () => actor!.getAllProducts(token),
-    enabled: !!actor && !isFetching && !!token,
+    queryKey: ["admin-products"],
+    queryFn: async () => {
+      try {
+        return await actor!.getAllProducts(token);
+      } catch {
+        // getAllProducts doesn't validate session, so this should rarely fail
+        return [];
+      }
+    },
+    enabled: !!actor && !isFetching,
   });
 
   const toggleMutation = useMutation({
@@ -162,11 +174,30 @@ export default function Products() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-products"] });
       qc.invalidateQueries({ queryKey: ["active-products"] });
+      qc.invalidateQueries({ queryKey: ["all-products-public"] });
       toast.success("Product status updated");
     },
     onError: (err: unknown) => {
       const msg =
         err instanceof Error ? err.message : "Failed to update product";
+      toast.error(msg);
+    },
+  });
+
+  const setAllActiveMutation = useMutation({
+    mutationFn: (active: boolean) => actor!.setAllProductsActive(token, active),
+    onSuccess: (_, active) => {
+      qc.invalidateQueries({ queryKey: ["admin-products"] });
+      qc.invalidateQueries({ queryKey: ["active-products"] });
+      qc.invalidateQueries({ queryKey: ["all-products-public"] });
+      toast.success(
+        active
+          ? "All products activated — customers can now order"
+          : "All products deactivated — customers will see update notice",
+      );
+    },
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : "Failed to update";
       toast.error(msg);
     },
   });
@@ -177,6 +208,7 @@ export default function Products() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-products"] });
       qc.invalidateQueries({ queryKey: ["active-products"] });
+      qc.invalidateQueries({ queryKey: ["all-products-public"] });
       toast.success("Rate updated");
       setEditingRateId(null);
     },
@@ -244,6 +276,7 @@ export default function Products() {
       await actor.replaceProductsWithDetails(token, items);
       qc.invalidateQueries({ queryKey: ["admin-products"] });
       qc.invalidateQueries({ queryKey: ["active-products"] });
+      qc.invalidateQueries({ queryKey: ["all-products-public"] });
       toast.success(`${items.length} products uploaded successfully`);
     } catch (err: unknown) {
       const msg =
@@ -262,6 +295,7 @@ export default function Products() {
       await actor.replaceProductsWithDetails(token, DEFAULT_PRODUCTS);
       qc.invalidateQueries({ queryKey: ["admin-products"] });
       qc.invalidateQueries({ queryKey: ["active-products"] });
+      qc.invalidateQueries({ queryKey: ["all-products-public"] });
       toast.success("100 default products loaded successfully");
     } catch (err: unknown) {
       const msg =
@@ -309,6 +343,7 @@ export default function Products() {
       await actor.updateProductImage(token, product.id, base64);
       qc.invalidateQueries({ queryKey: ["admin-products"] });
       qc.invalidateQueries({ queryKey: ["active-products"] });
+      qc.invalidateQueries({ queryKey: ["all-products-public"] });
       toast.success(`Image updated for ${product.name}`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to upload image";
@@ -319,6 +354,23 @@ export default function Products() {
       if (ref) ref.value = "";
     }
   };
+
+  // Compute filtered products from search
+  const filteredProducts = (() => {
+    if (!productSearch.trim()) return products;
+    const terms = productSearch
+      .split(",")
+      .map((t) => t.trim().toLowerCase())
+      .filter(Boolean);
+    if (terms.length === 0) return products;
+    return products.filter((p) =>
+      terms.some((term) => p.name.toLowerCase().includes(term)),
+    );
+  })();
+
+  const allActive = products.length > 0 && products.every((p) => p.active);
+  const anyActive = products.some((p) => p.active);
+  const activeCount = products.filter((p) => p.active).length;
 
   return (
     <div className="space-y-6">
@@ -346,6 +398,7 @@ export default function Products() {
             variant="outline"
             onClick={handleDownloadTemplate}
             className="gap-2"
+            data-ocid="products.template.button"
           >
             <Download className="w-4 h-4" />
             Download Template
@@ -362,6 +415,7 @@ export default function Products() {
               onClick={() => fileRef.current?.click()}
               disabled={isUploading || !actor}
               className="gap-2"
+              data-ocid="products.upload.button"
             >
               {isUploading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -376,6 +430,7 @@ export default function Products() {
             onClick={handleLoadDefaults}
             disabled={isLoadingDefaults || !actor}
             className="gap-2"
+            data-ocid="products.load_defaults.button"
           >
             {isLoadingDefaults ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -390,15 +445,102 @@ export default function Products() {
       {/* Products Table */}
       <Card className="shadow-xs">
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="font-heading text-base flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex items-center gap-2 flex-1">
               <Package className="w-4 h-4 text-primary" />
-              Product List
-            </CardTitle>
-            {!isLoading && (
-              <Badge variant="secondary">{products.length} products</Badge>
+              <span className="font-heading text-base font-semibold">
+                Product List
+              </span>
+              {!isLoading && (
+                <Badge variant="secondary">
+                  {productSearch.trim()
+                    ? `${filteredProducts.length} of ${products.length}`
+                    : `${products.length} products`}
+                </Badge>
+              )}
+            </div>
+
+            {/* Master activation controls */}
+            {products.length > 0 && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <span className="font-medium">
+                    {activeCount}/{products.length} active
+                  </span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 gap-1.5 text-xs border-success/40 text-success hover:bg-success/10"
+                  onClick={() => setAllActiveMutation.mutate(true)}
+                  disabled={setAllActiveMutation.isPending || allActive}
+                  data-ocid="products.activate_all.button"
+                >
+                  {setAllActiveMutation.isPending ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Zap className="w-3 h-3" />
+                  )}
+                  Activate All
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 gap-1.5 text-xs border-destructive/40 text-destructive hover:bg-destructive/10"
+                  onClick={() => setAllActiveMutation.mutate(false)}
+                  disabled={setAllActiveMutation.isPending || !anyActive}
+                  data-ocid="products.deactivate_all.button"
+                >
+                  {setAllActiveMutation.isPending ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <PowerOff className="w-3 h-3" />
+                  )}
+                  Deactivate All
+                </Button>
+              </div>
             )}
           </div>
+
+          {/* Warning banner when all deactivated */}
+          {products.length > 0 && !anyActive && (
+            <div className="mt-3 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-semibold text-amber-800">
+                  All products deactivated
+                </p>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  Customers will see "Products are updating. We'll be back
+                  soon." on the ordering page. Activate all products to restore
+                  ordering.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Search bar */}
+          {products.length > 0 && (
+            <div className="mt-3 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search products... (use commas for multiple, e.g. Tomato, Onion)"
+                value={productSearch}
+                onChange={(e) => setProductSearch(e.target.value)}
+                className="pl-9 h-9 text-sm"
+                data-ocid="products.search.search_input"
+              />
+              {productSearch && (
+                <button
+                  type="button"
+                  onClick={() => setProductSearch("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -408,11 +550,41 @@ export default function Products() {
               ))}
             </div>
           ) : products.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
+            <div
+              className="text-center py-12 text-muted-foreground"
+              data-ocid="products.list.empty_state"
+            >
               <Package className="w-10 h-10 mx-auto mb-3 opacity-30" />
               <p className="text-sm font-medium">No products yet</p>
+              <p className="text-xs mt-1 mb-4">
+                First time setup: Click "Load 100 Default Products" to populate
+                your product catalog, or upload your own Excel file.
+              </p>
+              <Button
+                onClick={handleLoadDefaults}
+                disabled={isLoadingDefaults || !actor}
+                className="gap-2 mx-auto"
+                data-ocid="products.list.load_defaults_empty.button"
+              >
+                {isLoadingDefaults ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4" />
+                )}
+                {isLoadingDefaults ? "Loading..." : "Load 100 Default Products"}
+              </Button>
+            </div>
+          ) : filteredProducts.length === 0 ? (
+            <div
+              className="text-center py-12 text-muted-foreground"
+              data-ocid="products.search.empty_state"
+            >
+              <Search className="w-10 h-10 mx-auto mb-3 opacity-30" />
+              <p className="text-sm font-medium">
+                No products match your search
+              </p>
               <p className="text-xs mt-1">
-                Upload an Excel file or click "Load 100 Default Products"
+                Try different search terms or clear the search
               </p>
             </div>
           ) : (
@@ -444,7 +616,7 @@ export default function Products() {
                   </tr>
                 </thead>
                 <tbody>
-                  {products.map((product, idx) => {
+                  {filteredProducts.map((product, idx) => {
                     const isEditingRate =
                       editingRateId === product.id.toString();
                     const productIdStr = product.id.toString();
@@ -453,6 +625,7 @@ export default function Products() {
                       <tr
                         key={product.id.toString()}
                         className="border-b border-border/50 hover:bg-muted/40 transition-colors"
+                        data-ocid={`products.list.item.${idx + 1}`}
                       >
                         <td className="px-6 py-3 text-muted-foreground text-xs">
                           {idx + 1}
@@ -485,12 +658,14 @@ export default function Products() {
                                 }}
                                 className="h-7 w-20 text-xs"
                                 autoFocus
+                                data-ocid="products.rate.input"
                               />
                               <button
                                 type="button"
                                 onClick={() => commitEditRate(product)}
                                 className="w-6 h-6 rounded flex items-center justify-center bg-success/15 text-success hover:bg-success/25 transition-colors"
                                 disabled={updateRateMutation.isPending}
+                                data-ocid="products.rate.save_button"
                               >
                                 <Check className="w-3 h-3" />
                               </button>
@@ -498,6 +673,7 @@ export default function Products() {
                                 type="button"
                                 onClick={cancelEditRate}
                                 className="w-6 h-6 rounded flex items-center justify-center bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
+                                data-ocid="products.rate.cancel_button"
                               >
                                 <X className="w-3 h-3" />
                               </button>
@@ -507,6 +683,7 @@ export default function Products() {
                               type="button"
                               onClick={() => startEditRate(product)}
                               className="flex items-center gap-1.5 group text-sm"
+                              data-ocid="products.rate.edit_button"
                             >
                               <span className="font-semibold">
                                 ₹{product.rate}
@@ -521,7 +698,9 @@ export default function Products() {
                               Active
                             </Badge>
                           ) : (
-                            <Badge variant="secondary">Inactive</Badge>
+                            <Badge className="bg-amber-100 text-amber-700 border-0">
+                              Inactive
+                            </Badge>
                           )}
                         </td>
                         <td className="px-4 py-3">
@@ -532,6 +711,7 @@ export default function Products() {
                               toggleMutation.mutate(product.id)
                             }
                             disabled={toggleMutation.isPending}
+                            data-ocid="products.product.toggle"
                           />
                         </td>
                         <td className="px-4 py-3">
@@ -563,7 +743,7 @@ export default function Products() {
                                 onClick={() =>
                                   imageFileRefs.current[productIdStr]?.click()
                                 }
-                                data-ocid="product.image.edit_button"
+                                data-ocid="products.image.edit_button"
                               >
                                 <Camera className="w-3.5 h-3.5" />
                               </button>
@@ -576,7 +756,7 @@ export default function Products() {
                               onClick={() =>
                                 imageFileRefs.current[productIdStr]?.click()
                               }
-                              data-ocid="product.image.upload_button"
+                              data-ocid="products.image.upload_button"
                             >
                               <Camera className="w-3.5 h-3.5" />
                               Upload

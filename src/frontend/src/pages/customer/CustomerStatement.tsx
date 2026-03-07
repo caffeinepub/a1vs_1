@@ -20,8 +20,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Download, FileBarChart, FileText, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import type { CompanyProfile, StatementEntry } from "../../backend.d";
-import { useActor } from "../../hooks/useActor";
+import type { CompanyProfile } from "../../backend.d";
+import { useExtendedActor } from "../../hooks/useExtendedActor";
+import type { StatementEntry } from "../../types/appTypes";
 import { generateStatementPDF } from "../../utils/pdfUtils";
 
 function formatDate(timestamp: bigint | number): string {
@@ -63,7 +64,7 @@ function getQuickRange(period: string): { from: Date; to: Date } {
 }
 
 export default function CustomerStatement() {
-  const { actor, isFetching } = useActor();
+  const { actor, isFetching } = useExtendedActor();
 
   const storeNumber = localStorage.getItem("a1vs_store_number") ?? "";
   const companyName = localStorage.getItem("a1vs_company_name") ?? "";
@@ -104,7 +105,23 @@ export default function CustomerStatement() {
     try {
       const from = toNano(new Date(`${fromDate}T00:00:00`));
       const to = toNano(new Date(`${toDate}T23:59:59`));
-      const data = await actor.getMyStatement(token, from, to);
+      let data: StatementEntry[] = [];
+      try {
+        data = await actor.getMyStatement(token, from, to);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "";
+        if (msg.includes("is not a function")) {
+          toast.error(
+            "Statement feature is not yet available. Please contact admin.",
+          );
+          return;
+        }
+        if (msg.includes("Access denied") || msg.includes("Unauthorized")) {
+          toast.error("Session expired. Please log out and log in again.");
+          return;
+        }
+        throw err;
+      }
       setEntries(
         data.sort((a, b) => Number(a.entryDate) - Number(b.entryDate)),
       );
@@ -114,11 +131,7 @@ export default function CustomerStatement() {
     } catch (err) {
       const msg =
         err instanceof Error ? err.message : "Failed to load statement";
-      toast.error(
-        msg.includes("Access denied") || msg.includes("Unauthorized")
-          ? "Access denied. Please log out and log in again."
-          : msg,
-      );
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }

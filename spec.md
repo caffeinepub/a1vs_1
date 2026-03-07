@@ -1,42 +1,30 @@
-# A1VS - Points 15-18 Updates
+# A1VS
 
 ## Current State
-- Order type has: deliverySignature, invoiceNumber, status, timestamp fields
-- markOrderDeliveredWithSignature sets status=delivered and invoiceNumber
-- updateOrderStatusRider updates status only
-- Admin Dashboard has 10 stat cards (no revenue-till-today, no pending-due, no avg delivery time)
-- Orders in admin show status/PO number with no delivery timing info
-- Invoice PDF uses order.timestamp for the date; no "signed at" timestamp exists
+A full vegetable/fruit ordering platform with Admin Portal, Customer Portal, and Rider Portal. The backend has all required APIs (products, customers, orders, payments, riders, statements, dashboard stats) but uses non-stable in-memory Maps. This means all data (products, customers, orders, payments, riders, sessions) is wiped every time a new build is deployed. The admin Products page shows "0 products" because the backend data was reset on the last deployment.
 
 ## Requested Changes (Diff)
 
 ### Add
-- `deliverySignedAt: ?Time` field to Order — set to Time.now() when markOrderDeliveredWithSignature is called (the exact moment signature is submitted)
-- `deliveryStartTime: ?Time` field to Order — set to Time.now() when status is changed to "on_the_way"
-- `deliveryEndTime: ?Time` field to Order — set to Time.now() when status is changed to "delivered"
-- New backend function `updateOrderStatusWithTimestamp` that sets deliveryStartTime on "on_the_way" and deliveryEndTime on "delivered"
-- Admin Dashboard: two new stat cards: "Revenue Till Today" (sum of delivered + accepted order totals) and "Pending Due Amount" (total debit minus total credit across all statements)
-- Admin Dashboard: one new stat card "Avg Delivery Time" (avg of deliveryEndTime - deliveryStartTime for all delivered orders with both timestamps)
-- Invoice PDF: below customer signature box, show "Received Date & Time: <deliverySignedAt formatted>" — only when deliverySignedAt is present
-- Admin Orders: each delivered order row shows total delivery duration (e.g. "42 mins" or "1 hr 12 mins")
+- Stable variable storage for all backend data so it persists across canister upgrades
+- `preupgrade` / `postupgrade` system hooks to serialize/deserialize all Maps to stable arrays
+- All counters (productIdCounter, orderIdCounter, paymentIdCounter) must also be stable
 
 ### Modify
-- markOrderDeliveredWithSignature: also set deliverySignedAt = Time.now()
-- updateOrderStatusRider and updateOrderStatus: when setting "on_the_way", also set deliveryStartTime; when "delivered", also set deliveryEndTime
-- Order type in Motoko: add deliverySignedAt, deliveryStartTime, deliveryEndTime optional fields
-- Order type in backend.d.ts: add deliverySignedAt, deliveryStartTime, deliveryEndTime optional bigint fields
-- pdfUtils drawTotalAndSignatures: render deliverySignedAt timestamp below customer signature when present
-- Admin Dashboard: add 3 new stat cards (revenue-till-today, pending-due, avg-delivery-time) and query payments for pending-due calculation
+- All state declarations: `products`, `customers`, `orders`, `users`, `subUsers`, `payments`, `riderAssignments`, `riderProfiles`, `companyProfile`, `passwordHash`, `webhookUrl` -- converted to stable-backed storage
+- On initialization, Maps are loaded from stable arrays
+- On `preupgrade`, all Maps are serialized back to stable arrays
+- `changeAdminPassword` must update stable variable
+- `setCompanyProfile` must update stable variable
+- `setWebhookUrl` must update stable variable
 
 ### Remove
-- Nothing removed
+- Nothing removed from existing functionality
 
 ## Implementation Plan
-1. Update Motoko Order type to add deliverySignedAt, deliveryStartTime, deliveryEndTime (?Time each)
-2. Update all Order construction/update sites in Motoko to carry the new fields (preserving existing values)
-3. Update markOrderDeliveredWithSignature to set deliverySignedAt = Time.now() and deliveryEndTime = Time.now()
-4. Update updateOrderStatus and updateOrderStatusRider: set deliveryStartTime on "on_the_way", deliveryEndTime on "delivered"
-5. Update backend.d.ts with new Order fields
-6. Update pdfUtils.ts to render signature date/time on invoice PDF
-7. Update Admin Dashboard to add 3 new stat cards (revenue-till-today fetches payments, pending-due, avg delivery time)
-8. Update Admin Orders rows to show delivery duration for delivered orders
+1. Add stable variable declarations for every data map as arrays of tuples
+2. Initialize Maps using `Map.fromIter()` from those stable arrays on actor startup
+3. Add `preupgrade` system function that saves all Maps back to stable arrays
+4. Add `postupgrade` system function (no-op, data loaded at init)
+5. Ensure all counter increments also update stable counter variables
+6. Keep all existing API functions identical -- no breaking changes to backend.d.ts

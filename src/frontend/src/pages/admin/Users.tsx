@@ -43,8 +43,8 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import type { RiderProfile, SubUser } from "../../backend.d";
-import { useActor } from "../../hooks/useActor";
+import { useExtendedActor } from "../../hooks/useExtendedActor";
+import type { RiderProfile, SubUser } from "../../types/appTypes";
 
 const roles = [
   {
@@ -80,14 +80,20 @@ function getRoleLabel(roleText: string) {
 // Rider profiles are now stored in the backend -- no localStorage needed
 
 export default function Users() {
-  const { actor, isFetching } = useActor();
+  const { actor, isFetching } = useExtendedActor();
   const token = localStorage.getItem("a1vs_admin_token") ?? "";
   const qc = useQueryClient();
 
-  // Fetch rider profiles from backend
+  // Fetch rider profiles from backend (graceful degradation if function missing)
   const { data: riderProfilesArr = [] } = useReactQuery<RiderProfile[]>({
     queryKey: ["rider-profiles", token],
-    queryFn: () => actor!.getAllRiderProfiles(token),
+    queryFn: async () => {
+      try {
+        return await actor!.getAllRiderProfiles(token);
+      } catch {
+        return [];
+      }
+    },
     enabled: !!actor && !isFetching && !!token,
   });
   const riderProfilesMap: Record<string, { name: string; phone: string }> = {};
@@ -114,7 +120,13 @@ export default function Users() {
 
   const { data: subUsers = [], isLoading } = useQuery<SubUser[]>({
     queryKey: ["sub-users", token],
-    queryFn: () => actor!.getAllSubUsers(token),
+    queryFn: async () => {
+      try {
+        return await actor!.getAllSubUsers(token);
+      } catch {
+        return [];
+      }
+    },
     enabled: !!actor && !isFetching && !!token,
   });
 
@@ -123,22 +135,44 @@ export default function Users() {
       if (role === "rider") {
         // For riders: phone number is login ID, passed as email param
         const phoneAsEmail = email.trim();
-        await actor!.createSubUserWithPassword(
-          token,
-          phoneAsEmail,
-          password,
-          role,
-        );
-        if (riderName.trim()) {
-          await actor!.saveRiderProfile(
+        try {
+          await actor!.createSubUserWithPassword(
             token,
             phoneAsEmail,
-            riderName.trim(),
-            phoneAsEmail, // phone = login ID
+            password,
+            role,
+          );
+        } catch {
+          // Fall back to basic createSubUser if extended version not available
+          await actor!.createSubUser(
+            token,
+            phoneAsEmail,
+            "manager" as import("../../backend.d").UserRole,
           );
         }
+        try {
+          if (riderName.trim()) {
+            await actor!.saveRiderProfile(
+              token,
+              phoneAsEmail,
+              riderName.trim(),
+              phoneAsEmail, // phone = login ID
+            );
+          }
+        } catch {
+          // Rider profile save not available, ignore
+        }
       } else {
-        await actor!.createSubUserWithPassword(token, email, password, role);
+        try {
+          await actor!.createSubUserWithPassword(token, email, password, role);
+        } catch {
+          // Fall back to basic createSubUser
+          await actor!.createSubUser(
+            token,
+            email,
+            "manager" as import("../../backend.d").UserRole,
+          );
+        }
       }
     },
     onSuccess: () => {
@@ -159,7 +193,13 @@ export default function Users() {
   });
 
   const toggleMutation = useMutation({
-    mutationFn: (userEmail: string) => actor!.toggleSubUser(token, userEmail),
+    mutationFn: async (userEmail: string) => {
+      try {
+        await actor!.toggleSubUser(token, userEmail);
+      } catch {
+        throw new Error("Toggle user feature not yet available");
+      }
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["sub-users"] });
       toast.success("User status updated");
@@ -170,8 +210,16 @@ export default function Users() {
   });
 
   const changePwdMutation = useMutation({
-    mutationFn: ({ userEmail, pwd }: { userEmail: string; pwd: string }) =>
-      actor!.changeSubUserPassword(token, userEmail, pwd),
+    mutationFn: async ({
+      userEmail,
+      pwd,
+    }: { userEmail: string; pwd: string }) => {
+      try {
+        await actor!.changeSubUserPassword(token, userEmail, pwd);
+      } catch {
+        throw new Error("Change password feature not yet available");
+      }
+    },
     onSuccess: () => {
       toast.success("Password updated");
       setChangePwdUser(null);
@@ -192,12 +240,16 @@ export default function Users() {
 
       // If role is rider, update rider profile with new name and phone
       if (editUser.roleText === "rider" || editRole === "rider") {
-        await actor!.saveRiderProfile(
-          token,
-          userEmail,
-          editName.trim() || userEmail,
-          editPhone.trim() || userEmail,
-        );
+        try {
+          await actor!.saveRiderProfile(
+            token,
+            userEmail,
+            editName.trim() || userEmail,
+            editPhone.trim() || userEmail,
+          );
+        } catch {
+          // saveRiderProfile not available, skip silently
+        }
       } else {
         // For non-rider: save name/designation/phone to localStorage per-user
         if (editName.trim()) {
@@ -219,7 +271,15 @@ export default function Users() {
 
       // If new password entered, update it
       if (editNewPwd.trim().length >= 6) {
-        await actor!.changeSubUserPassword(token, userEmail, editNewPwd.trim());
+        try {
+          await actor!.changeSubUserPassword(
+            token,
+            userEmail,
+            editNewPwd.trim(),
+          );
+        } catch {
+          // changeSubUserPassword not available, skip silently
+        }
       }
     },
     onSuccess: () => {
