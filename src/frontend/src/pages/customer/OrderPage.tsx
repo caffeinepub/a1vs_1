@@ -686,6 +686,14 @@ export default function OrderPage() {
             >
               <Leaf className="w-10 h-10 mb-3 opacity-30" />
               <p className="text-sm font-medium">No products found</p>
+              {productSearch ? (
+                <p className="text-xs mt-1">Try a different search term</p>
+              ) : (
+                <p className="text-xs mt-1 text-center max-w-xs">
+                  No products are available right now. Please contact your
+                  administrator to set up the product catalog.
+                </p>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 pb-24">
@@ -1027,15 +1035,15 @@ export default function OrderPage() {
                   onClick={openProductGrid}
                   size="sm"
                   className="gap-2 h-9"
-                  disabled={
-                    productsLoading ||
-                    activeProducts.length === 0 ||
-                    allProductsUpdating
-                  }
+                  disabled={productsLoading || allProductsUpdating}
                   data-ocid="order.add_item.button"
                 >
                   <PackagePlus className="w-4 h-4" />
-                  {allProductsUpdating ? "Products Updating..." : "Add Item"}
+                  {productsLoading
+                    ? "Loading..."
+                    : allProductsUpdating
+                      ? "Products Updating..."
+                      : "Add Item"}
                 </Button>
               </div>
 
