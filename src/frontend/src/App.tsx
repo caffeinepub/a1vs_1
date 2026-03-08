@@ -128,6 +128,8 @@ const adminIndexRoute = createRoute({
     if (!token) {
       throw redirect({ to: "/admin/login" });
     }
+    // Note: token presence check only. Session validity is enforced by the backend
+    // and the AdminLayout's unhandledrejection handler will clear the token if expired.
   },
   component: () => <AdminLayout />,
 });

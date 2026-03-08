@@ -34,14 +34,8 @@ export default function AdminLogin() {
   const { actor } = useExtendedActor();
   const navigate = useNavigate();
 
-  if (localStorage.getItem("a1vs_admin_token")) {
-    navigate({ to: "/admin" });
-    return null;
-  }
-  if (localStorage.getItem("a1vs_rider_token")) {
-    navigate({ to: "/rider" });
-    return null;
-  }
+  // Do NOT auto-redirect based on a stored token — tokens are invalidated on every new deployment.
+  // The user must log in again to get a fresh session from the backend.
 
   const attemptMasterLogin = async (retries = 3): Promise<void> => {
     if (!actor) return;

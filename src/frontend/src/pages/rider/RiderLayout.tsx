@@ -2,20 +2,46 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Outlet, useNavigate } from "@tanstack/react-router";
 import { LogOut, Truck } from "lucide-react";
+import { useEffect } from "react";
+import { toast } from "sonner";
+import { isSessionExpiredError } from "../../utils/icErrorUtils";
 
 export default function RiderLayout() {
   const navigate = useNavigate();
   const riderName = localStorage.getItem("a1vs_rider_name") ?? "Rider";
   const riderPhone = localStorage.getItem("a1vs_rider_phone") ?? "";
 
-  const handleLogout = () => {
+  const handleLogout = (showMessage = false) => {
     localStorage.removeItem("a1vs_rider_token");
     localStorage.removeItem("a1vs_rider_email");
     localStorage.removeItem("a1vs_rider_name");
     localStorage.removeItem("a1vs_rider_phone");
     localStorage.removeItem("a1vs_rider_role");
+    if (showMessage) {
+      toast.error("Your session has expired. Please log in again.");
+    }
     navigate({ to: "/admin/login" });
   };
+
+  // Auto-logout when the backend rejects the rider session
+  useEffect(() => {
+    const onRejection = (event: PromiseRejectionEvent) => {
+      if (isSessionExpiredError(event.reason)) {
+        event.preventDefault();
+        localStorage.removeItem("a1vs_rider_token");
+        localStorage.removeItem("a1vs_rider_email");
+        localStorage.removeItem("a1vs_rider_name");
+        localStorage.removeItem("a1vs_rider_phone");
+        localStorage.removeItem("a1vs_rider_role");
+        toast.error("Your session has expired. Please log in again.");
+        navigate({ to: "/admin/login" });
+      }
+    };
+    window.addEventListener("unhandledrejection", onRejection);
+    return () => {
+      window.removeEventListener("unhandledrejection", onRejection);
+    };
+  }, [navigate]);
 
   return (
     <div className="min-h-screen bg-rider-bg flex flex-col">
@@ -45,7 +71,7 @@ export default function RiderLayout() {
           <Button
             size="sm"
             variant="ghost"
-            onClick={handleLogout}
+            onClick={() => handleLogout(false)}
             className="gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 h-8"
           >
             <LogOut className="w-3.5 h-3.5" />

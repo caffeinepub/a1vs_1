@@ -15,7 +15,9 @@ import {
   ShoppingBag,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { isSessionExpiredError } from "../../utils/icErrorUtils";
 
 const navItems = [
   { to: "/customer/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -33,14 +35,38 @@ export default function CustomerLayout() {
   const storeNumber = localStorage.getItem("a1vs_store_number") ?? "";
   const companyName = localStorage.getItem("a1vs_company_name") ?? "";
 
-  const handleLogout = () => {
+  const handleLogout = (showMessage = false) => {
     localStorage.removeItem("a1vs_customer_token");
     localStorage.removeItem("a1vs_store_number");
     localStorage.removeItem("a1vs_company_name");
     localStorage.removeItem("a1vs_address");
     localStorage.removeItem("a1vs_gst_number");
+    if (showMessage) {
+      toast.error("Your session has expired. Please log in again.");
+    }
     navigate({ to: "/" });
   };
+
+  // Global session expiry handler: auto-logout when backend rejects the session
+  // (this happens after every new deployment because in-memory sessions are wiped)
+  useEffect(() => {
+    const onRejection = (event: PromiseRejectionEvent) => {
+      if (isSessionExpiredError(event.reason)) {
+        event.preventDefault();
+        localStorage.removeItem("a1vs_customer_token");
+        localStorage.removeItem("a1vs_store_number");
+        localStorage.removeItem("a1vs_company_name");
+        localStorage.removeItem("a1vs_address");
+        localStorage.removeItem("a1vs_gst_number");
+        toast.error("Your session has expired. Please log in again.");
+        navigate({ to: "/" });
+      }
+    };
+    window.addEventListener("unhandledrejection", onRejection);
+    return () => {
+      window.removeEventListener("unhandledrejection", onRejection);
+    };
+  }, [navigate]);
 
   const isActive = (to: string) => {
     if (to === "/order")
@@ -107,7 +133,7 @@ export default function CustomerLayout() {
       <div className="px-3 py-4 border-t border-green-100">
         <button
           type="button"
-          onClick={handleLogout}
+          onClick={() => handleLogout(false)}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-500/80 hover:bg-red-50 hover:text-red-600 transition-all"
         >
           <LogOut className="w-4 h-4 shrink-0" />
@@ -182,7 +208,7 @@ export default function CustomerLayout() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={handleLogout}
+            onClick={() => handleLogout(false)}
             className="text-red-500 hover:text-red-600 hover:bg-red-50 gap-1 text-xs"
           >
             <LogOut className="w-4 h-4" />

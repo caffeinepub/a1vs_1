@@ -19,7 +19,9 @@ import {
   UserCog,
   Users,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { isSessionExpiredError } from "../../utils/icErrorUtils";
 
 const navItems = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
@@ -38,11 +40,32 @@ export default function AdminLayout() {
   const currentPath = routerState.location.pathname;
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const handleLogout = () => {
+  const handleLogout = (showMessage = false) => {
     localStorage.removeItem("a1vs_admin_token");
     localStorage.removeItem("a1vs_admin_role");
+    if (showMessage) {
+      toast.error("Your session has expired. Please log in again.");
+    }
     navigate({ to: "/admin/login" });
   };
+
+  // Global session expiry handler: listen for unhandled promise rejections
+  // that indicate the backend session is no longer valid (happens after new deployments)
+  useEffect(() => {
+    const onRejection = (event: PromiseRejectionEvent) => {
+      if (isSessionExpiredError(event.reason)) {
+        event.preventDefault();
+        localStorage.removeItem("a1vs_admin_token");
+        localStorage.removeItem("a1vs_admin_role");
+        toast.error("Your session has expired. Please log in again.");
+        navigate({ to: "/admin/login" });
+      }
+    };
+    window.addEventListener("unhandledrejection", onRejection);
+    return () => {
+      window.removeEventListener("unhandledrejection", onRejection);
+    };
+  }, [navigate]);
 
   const isActive = (to: string, exact?: boolean) => {
     if (exact) return currentPath === to;
@@ -115,7 +138,7 @@ export default function AdminLayout() {
         </a>
         <button
           type="button"
-          onClick={handleLogout}
+          onClick={() => handleLogout(false)}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-destructive/80 hover:bg-destructive/10 hover:text-destructive transition-all"
         >
           <LogOut className="w-4 h-4 shrink-0" />
@@ -170,7 +193,7 @@ export default function AdminLayout() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={handleLogout}
+            onClick={() => handleLogout(false)}
             className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-2"
           >
             <LogOut className="w-4 h-4" />

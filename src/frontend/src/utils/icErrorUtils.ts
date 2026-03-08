@@ -5,6 +5,27 @@
  * IC0504 = canister is out of cycles
  */
 
+const SESSION_ERROR_PATTERNS = [
+  "invalid session token",
+  "session expired",
+  "session has no role",
+  "access denied",
+  "insufficient permissions",
+];
+
+/**
+ * Returns true if the error indicates the session is no longer valid on the backend.
+ * This happens after every new deployment because in-memory sessions are wiped.
+ */
+export function isSessionExpiredError(err: unknown): boolean {
+  if (!err) return false;
+  const msg =
+    err instanceof Error
+      ? err.message.toLowerCase()
+      : String(err).toLowerCase();
+  return SESSION_ERROR_PATTERNS.some((pattern) => msg.includes(pattern));
+}
+
 export const IC_ERROR_PATTERNS = [
   "ic0508",
   "ic0503",
