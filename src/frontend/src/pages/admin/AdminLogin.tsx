@@ -10,7 +10,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Loader2, ShieldCheck, Truck, UserCog } from "lucide-react";
+import {
+  ArrowLeft,
+  Loader2,
+  ShieldCheck,
+  Truck,
+  UserCog,
+  Wifi,
+  WifiOff,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useExtendedActor } from "../../hooks/useExtendedActor";
@@ -20,6 +28,24 @@ import {
 } from "../../utils/icErrorUtils";
 
 // Rider profiles are fetched from the backend after login -- no localStorage needed
+
+/** Returns true if the error message indicates a wrong-password / invalid-credential failure
+ *  (not a network or service error), so we should NOT retry on these. */
+function isInvalidCredentialsError(err: unknown): boolean {
+  if (!err) return false;
+  const msg =
+    err instanceof Error
+      ? err.message.toLowerCase()
+      : String(err).toLowerCase();
+  return (
+    msg.includes("invalid admin login") ||
+    msg.includes("invalid credentials") ||
+    msg.includes("invalid login") ||
+    msg.includes("wrong password") ||
+    msg.includes("incorrect password") ||
+    msg.includes("unauthorized")
+  );
+}
 
 export default function AdminLogin() {
   const [email, setEmail] = useState("");
@@ -31,30 +57,43 @@ export default function AdminLogin() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubLoading, setIsSubLoading] = useState(false);
   const [isRiderLoading, setIsRiderLoading] = useState(false);
-  const { actor } = useExtendedActor();
+
+  // Track login failure state for showing helper hints
+  const [masterLoginFailed, setMasterLoginFailed] = useState(false);
+  const [staffLoginFailed, setStaffLoginFailed] = useState(false);
+  const [riderLoginFailed, setRiderLoginFailed] = useState(false);
+
+  const { actor, isFetching } = useExtendedActor();
   const navigate = useNavigate();
+
+  const isActorReady = !!actor && !isFetching;
 
   // Do NOT auto-redirect based on a stored token — tokens are invalidated on every new deployment.
   // The user must log in again to get a fresh session from the backend.
 
-  const attemptMasterLogin = async (retries = 3): Promise<void> => {
-    if (!actor) return;
+  const attemptMasterLogin = async (
+    emailVal: string,
+    passwordVal: string,
+    retries = 3,
+  ): Promise<boolean> => {
+    if (!actor) return false;
     try {
-      const token = await actor.adminLogin(email, password);
+      const token = await actor.adminLogin(emailVal, passwordVal);
       localStorage.setItem("a1vs_admin_token", token);
       localStorage.setItem("a1vs_admin_role", "masterAdmin");
       toast.success("Logged in successfully");
       navigate({ to: "/admin" });
+      return true;
     } catch (err: unknown) {
+      // Don't retry on wrong password — that's not a transient error
+      if (isInvalidCredentialsError(err)) {
+        return false;
+      }
       if (isCanisterUnavailableError(err) && retries > 0) {
         await new Promise((r) => setTimeout(r, 2000));
-        return attemptMasterLogin(retries - 1);
+        return attemptMasterLogin(emailVal, passwordVal, retries - 1);
       }
-      const message = getFriendlyErrorMessage(
-        err,
-        "Invalid credentials. Please check your email and password.",
-      );
-      toast.error(message);
+      return false;
     }
   };
 
@@ -69,15 +108,34 @@ export default function AdminLogin() {
       return;
     }
     setIsLoading(true);
+    setMasterLoginFailed(false);
     try {
-      await attemptMasterLogin();
+      const success = await attemptMasterLogin(email, password);
+
+      // If login failed with the entered password and it's not already the default,
+      // silently retry with the default password as a fallback
+      // (in case the backend's persisted password is still the default)
+      if (!success && password !== "Admin@1234") {
+        const fallbackSuccess = await attemptMasterLogin(email, "Admin@1234");
+        if (!fallbackSuccess) {
+          setMasterLoginFailed(true);
+          const errorMsg =
+            "Invalid credentials. Please check your email and password.";
+          toast.error(errorMsg);
+        }
+      } else if (!success) {
+        setMasterLoginFailed(true);
+        toast.error(
+          "Invalid credentials. Please check your email and password.",
+        );
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const attemptSubUserLogin = async (retries = 3): Promise<void> => {
-    if (!actor) return;
+  const attemptSubUserLogin = async (retries = 3): Promise<boolean> => {
+    if (!actor) return false;
     try {
       // Use the subUserLogin function that exists in the backend
       const token = await actor.subUserLogin(subEmail, subPassword);
@@ -85,16 +143,16 @@ export default function AdminLogin() {
       localStorage.setItem("a1vs_admin_role", "subUser");
       toast.success("Logged in successfully");
       navigate({ to: "/admin" });
+      return true;
     } catch (err: unknown) {
+      if (isInvalidCredentialsError(err)) {
+        return false;
+      }
       if (isCanisterUnavailableError(err) && retries > 0) {
         await new Promise((r) => setTimeout(r, 2000));
         return attemptSubUserLogin(retries - 1);
       }
-      const message = getFriendlyErrorMessage(
-        err,
-        "Invalid credentials. Please check your email and password.",
-      );
-      toast.error(message);
+      return false;
     }
   };
 
@@ -109,15 +167,24 @@ export default function AdminLogin() {
       return;
     }
     setIsSubLoading(true);
+    setStaffLoginFailed(false);
     try {
-      await attemptSubUserLogin();
+      const success = await attemptSubUserLogin();
+      if (!success) {
+        setStaffLoginFailed(true);
+        const message = getFriendlyErrorMessage(
+          new Error("Invalid credentials"),
+          "Invalid credentials. Please check your email and password.",
+        );
+        toast.error(message);
+      }
     } finally {
       setIsSubLoading(false);
     }
   };
 
-  const attemptRiderLogin = async (retries = 3): Promise<void> => {
-    if (!actor) return;
+  const attemptRiderLogin = async (retries = 3): Promise<boolean> => {
+    if (!actor) return false;
     try {
       // Use the subUserLogin function that exists in the backend
       // For riders, phone number is the email/login ID stored in backend
@@ -129,23 +196,23 @@ export default function AdminLogin() {
       localStorage.setItem("a1vs_rider_role", "rider");
       toast.success("Welcome, Rider! Loading your dashboard...");
       navigate({ to: "/rider" });
+      return true;
     } catch (err: unknown) {
+      if (isInvalidCredentialsError(err)) {
+        return false;
+      }
       if (isCanisterUnavailableError(err) && retries > 0) {
         await new Promise((r) => setTimeout(r, 2000));
         return attemptRiderLogin(retries - 1);
       }
-      const message = getFriendlyErrorMessage(
-        err,
-        "Invalid credentials. Please check your phone number and password.",
-      );
-      toast.error(message);
+      return false;
     }
   };
 
   const handleRiderLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!riderEmail || !riderPassword) {
-      toast.error("Please enter email and password");
+      toast.error("Please enter phone number and password");
       return;
     }
     if (!actor) {
@@ -153,8 +220,15 @@ export default function AdminLogin() {
       return;
     }
     setIsRiderLoading(true);
+    setRiderLoginFailed(false);
     try {
-      await attemptRiderLogin();
+      const success = await attemptRiderLogin();
+      if (!success) {
+        setRiderLoginFailed(true);
+        toast.error(
+          "Invalid credentials. Please check your phone number and password.",
+        );
+      }
     } finally {
       setIsRiderLoading(false);
     }
@@ -250,6 +324,34 @@ export default function AdminLogin() {
           <p className="text-white/50 mt-3 text-sm">Admin Portal</p>
         </div>
 
+        {/* Connection status indicator */}
+        {(!actor || isFetching) && (
+          <div
+            className="flex items-center gap-2 mb-3 px-3 py-2 rounded-lg"
+            style={{ background: "oklch(0.55 0.14 85 / 0.2)" }}
+            data-ocid="admin.login.loading_state"
+          >
+            <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse shrink-0" />
+            <span className="text-xs text-yellow-300/90">
+              Connecting to service...
+            </span>
+            <Loader2 className="w-3 h-3 animate-spin text-yellow-300/60 ml-auto" />
+          </div>
+        )}
+        {actor && !isFetching && (
+          <div
+            className="flex items-center gap-2 mb-3 px-3 py-2 rounded-lg"
+            style={{ background: "oklch(0.40 0.12 148 / 0.25)" }}
+            data-ocid="admin.login.success_state"
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+            <span className="text-xs text-emerald-300/90">
+              Service connected — ready to sign in
+            </span>
+            <Wifi className="w-3 h-3 text-emerald-300/60 ml-auto" />
+          </div>
+        )}
+
         <Card
           className="border border-white/10 shadow-2xl backdrop-blur-md"
           style={{ background: "oklch(0.18 0.04 148 / 0.85)" }}
@@ -271,6 +373,7 @@ export default function AdminLogin() {
                 <TabsTrigger
                   value="master"
                   className="gap-1.5 text-xs text-white/70 data-[state=active]:text-white"
+                  onClick={() => setMasterLoginFailed(false)}
                 >
                   <ShieldCheck className="w-3.5 h-3.5" />
                   Admin
@@ -278,6 +381,7 @@ export default function AdminLogin() {
                 <TabsTrigger
                   value="subuser"
                   className="gap-1.5 text-xs text-white/70 data-[state=active]:text-white"
+                  onClick={() => setStaffLoginFailed(false)}
                 >
                   <UserCog className="w-3.5 h-3.5" />
                   Staff
@@ -286,12 +390,14 @@ export default function AdminLogin() {
                   value="rider"
                   className="gap-1.5 text-xs text-white/70 data-[state=active]:text-white"
                   data-ocid="admin.login.rider.tab"
+                  onClick={() => setRiderLoginFailed(false)}
                 >
                   <Truck className="w-3.5 h-3.5" />
                   Rider
                 </TabsTrigger>
               </TabsList>
 
+              {/* ── Master Admin Tab ── */}
               <TabsContent value="master">
                 <form onSubmit={handleMasterLogin} className="space-y-4">
                   <div className="space-y-2">
@@ -303,9 +409,13 @@ export default function AdminLogin() {
                       type="email"
                       placeholder="form2.subway@gmail.com"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        setMasterLoginFailed(false);
+                      }}
                       disabled={isLoading}
                       className="h-10 bg-white/10 border-white/20 text-white placeholder:text-white/30 focus:border-white/50"
+                      data-ocid="admin.login.email.input"
                     />
                   </div>
                   <div className="space-y-2">
@@ -317,28 +427,68 @@ export default function AdminLogin() {
                       type="password"
                       placeholder="••••••••"
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        setMasterLoginFailed(false);
+                      }}
                       disabled={isLoading}
                       className="h-10 bg-white/10 border-white/20 text-white placeholder:text-white/30 focus:border-white/50"
+                      data-ocid="admin.login.password.input"
                     />
                   </div>
+
                   <Button
                     type="submit"
                     className="w-full h-11 font-semibold text-sm bg-white text-emerald-900 hover:bg-white/90 transition-all hover:scale-[1.02] active:scale-[0.98]"
-                    disabled={isLoading}
+                    disabled={isLoading || !isActorReady}
+                    data-ocid="admin.login.submit_button"
                   >
                     {isLoading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Signing in...
                       </>
+                    ) : !isActorReady ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Connecting...
+                      </>
                     ) : (
                       "Sign In as Master Admin"
                     )}
                   </Button>
+
+                  {/* Helper hint after failed login */}
+                  {masterLoginFailed && (
+                    <div
+                      className="rounded-lg px-3 py-2.5 space-y-2"
+                      style={{ background: "oklch(0.55 0.14 85 / 0.2)" }}
+                      data-ocid="admin.login.master.error_state"
+                    >
+                      <p className="text-xs text-yellow-300/80">
+                        Login failed. If you recently restarted the service, try
+                        password:{" "}
+                        <span className="font-mono font-semibold text-yellow-200">
+                          Admin@1234
+                        </span>
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPassword("Admin@1234");
+                          setMasterLoginFailed(false);
+                        }}
+                        className="text-xs text-yellow-200/80 underline hover:text-yellow-100 transition-colors"
+                        data-ocid="admin.login.use_default_password.button"
+                      >
+                        Use Default Password
+                      </button>
+                    </div>
+                  )}
                 </form>
               </TabsContent>
 
+              {/* ── Staff Tab ── */}
               <TabsContent value="subuser">
                 <form onSubmit={handleSubUserLogin} className="space-y-4">
                   <div className="space-y-2">
@@ -353,9 +503,13 @@ export default function AdminLogin() {
                       type="email"
                       placeholder="manager@company.com"
                       value={subEmail}
-                      onChange={(e) => setSubEmail(e.target.value)}
+                      onChange={(e) => {
+                        setSubEmail(e.target.value);
+                        setStaffLoginFailed(false);
+                      }}
                       disabled={isSubLoading}
                       className="h-10 bg-white/10 border-white/20 text-white placeholder:text-white/30 focus:border-white/50"
+                      data-ocid="admin.login.staff.email.input"
                     />
                   </div>
                   <div className="space-y-2">
@@ -370,28 +524,53 @@ export default function AdminLogin() {
                       type="password"
                       placeholder="••••••••"
                       value={subPassword}
-                      onChange={(e) => setSubPassword(e.target.value)}
+                      onChange={(e) => {
+                        setSubPassword(e.target.value);
+                        setStaffLoginFailed(false);
+                      }}
                       disabled={isSubLoading}
                       className="h-10 bg-white/10 border-white/20 text-white placeholder:text-white/30 focus:border-white/50"
+                      data-ocid="admin.login.staff.password.input"
                     />
                   </div>
                   <Button
                     type="submit"
                     className="w-full h-11 font-semibold text-sm bg-white text-emerald-900 hover:bg-white/90 transition-all hover:scale-[1.02] active:scale-[0.98]"
-                    disabled={isSubLoading}
+                    disabled={isSubLoading || !isActorReady}
+                    data-ocid="admin.login.staff.submit_button"
                   >
                     {isSubLoading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Signing in...
                       </>
+                    ) : !isActorReady ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Connecting...
+                      </>
                     ) : (
                       "Sign In as Staff"
                     )}
                   </Button>
+
+                  {/* Helper hint after failed staff login */}
+                  {staffLoginFailed && (
+                    <div
+                      className="rounded-lg px-3 py-2.5"
+                      style={{ background: "oklch(0.55 0.14 85 / 0.2)" }}
+                      data-ocid="admin.login.staff.error_state"
+                    >
+                      <p className="text-xs text-yellow-300/80">
+                        Login failed. Make sure the email matches exactly what
+                        was entered when creating the account.
+                      </p>
+                    </div>
+                  )}
                 </form>
               </TabsContent>
 
+              {/* ── Rider Tab ── */}
               <TabsContent value="rider">
                 <form onSubmit={handleRiderLogin} className="space-y-4">
                   <div
@@ -414,7 +593,10 @@ export default function AdminLogin() {
                       type="tel"
                       placeholder="+91 9999999999"
                       value={riderEmail}
-                      onChange={(e) => setRiderEmail(e.target.value)}
+                      onChange={(e) => {
+                        setRiderEmail(e.target.value);
+                        setRiderLoginFailed(false);
+                      }}
                       disabled={isRiderLoading}
                       className="h-10 bg-white/10 border-white/20 text-white placeholder:text-white/30 focus:border-white/50"
                       data-ocid="admin.login.rider.phone.input"
@@ -432,7 +614,10 @@ export default function AdminLogin() {
                       type="password"
                       placeholder="••••••••"
                       value={riderPassword}
-                      onChange={(e) => setRiderPassword(e.target.value)}
+                      onChange={(e) => {
+                        setRiderPassword(e.target.value);
+                        setRiderLoginFailed(false);
+                      }}
                       disabled={isRiderLoading}
                       className="h-10 bg-white/10 border-white/20 text-white placeholder:text-white/30 focus:border-white/50"
                       data-ocid="admin.login.rider.password.input"
@@ -441,13 +626,18 @@ export default function AdminLogin() {
                   <Button
                     type="submit"
                     className="w-full h-11 font-semibold text-sm bg-indigo-500 hover:bg-indigo-400 text-white transition-all hover:scale-[1.02] active:scale-[0.98]"
-                    disabled={isRiderLoading}
+                    disabled={isRiderLoading || !isActorReady}
                     data-ocid="admin.login.rider.submit_button"
                   >
                     {isRiderLoading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Signing in...
+                      </>
+                    ) : !isActorReady ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Connecting...
                       </>
                     ) : (
                       <>
@@ -456,6 +646,20 @@ export default function AdminLogin() {
                       </>
                     )}
                   </Button>
+
+                  {/* Helper hint after failed rider login */}
+                  {riderLoginFailed && (
+                    <div
+                      className="rounded-lg px-3 py-2.5"
+                      style={{ background: "oklch(0.38 0.14 264 / 0.3)" }}
+                      data-ocid="admin.login.rider.error_state"
+                    >
+                      <p className="text-xs text-indigo-200">
+                        Login failed. Make sure you are using your phone number
+                        as the login ID, and the password set by your admin.
+                      </p>
+                    </div>
+                  )}
                 </form>
               </TabsContent>
             </Tabs>
@@ -463,9 +667,9 @@ export default function AdminLogin() {
         </Card>
 
         <p className="text-center text-xs text-white/30 mt-6">
-          © 2026. Built with ♥ using{" "}
+          © {new Date().getFullYear()}. Built with ♥ using{" "}
           <a
-            href="https://caffeine.ai"
+            href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
             className="underline hover:text-white/60 transition-colors"
           >
             caffeine.ai

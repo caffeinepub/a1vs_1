@@ -13,6 +13,7 @@ import {
   MapPin,
   ShoppingBag,
   Store,
+  Wifi,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -38,6 +39,7 @@ export default function StoreSelectorPage() {
   const [isFindingStore, setIsFindingStore] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [accountOnHold, setAccountOnHold] = useState(false);
+  const [loginFailed, setLoginFailed] = useState(false);
 
   // Check if already logged in
   const isLoggedIn = !!localStorage.getItem("a1vs_customer_token");
@@ -120,6 +122,7 @@ export default function StoreSelectorPage() {
         "Invalid password. Please try again.",
       );
       toast.error(msg);
+      setLoginFailed(true);
     }
   };
 
@@ -151,6 +154,8 @@ export default function StoreSelectorPage() {
     setStoreInfo(null);
     setStoreNumber("");
     setPassword("");
+    setLoginFailed(false);
+    setAccountOnHold(false);
   };
 
   return (
@@ -436,6 +441,17 @@ export default function StoreSelectorPage() {
                       </div>
                     )}
 
+                    {/* Connection status for customer portal */}
+                    {(isFetching || !actor) && (
+                      <div className="flex items-center gap-2 rounded-lg px-3 py-2 bg-amber-50 border border-amber-200">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
+                        <span className="text-xs text-amber-700">
+                          Connecting to service...
+                        </span>
+                        <Loader2 className="w-3 h-3 animate-spin text-amber-500 ml-auto" />
+                      </div>
+                    )}
+
                     <form onSubmit={handleLogin} className="space-y-4">
                       <div className="space-y-2">
                         <Label htmlFor="password">Password</Label>
@@ -447,12 +463,28 @@ export default function StoreSelectorPage() {
                           onChange={(e) => {
                             setPassword(e.target.value);
                             if (accountOnHold) setAccountOnHold(false);
+                            if (loginFailed) setLoginFailed(false);
                           }}
                           disabled={isLoggingIn}
                           className="h-11"
                           autoFocus
                         />
                       </div>
+
+                      {/* Helper hint after failed login */}
+                      {loginFailed && (
+                        <div
+                          className="rounded-lg px-3 py-2.5 bg-amber-50 border border-amber-200"
+                          data-ocid="login.password.error_state"
+                        >
+                          <p className="text-xs text-amber-700">
+                            Login failed. If your account was just created, make
+                            sure you are using the exact password set during
+                            registration.
+                          </p>
+                        </div>
+                      )}
+
                       <div className="flex gap-3">
                         <Button
                           type="button"

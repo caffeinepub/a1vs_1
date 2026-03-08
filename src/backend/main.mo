@@ -1,20 +1,18 @@
 import Map "mo:core/Map";
-import Array "mo:core/Array";
-import Iter "mo:core/Iter";
-import Order "mo:core/Order";
-import Runtime "mo:core/Runtime";
-import Text "mo:core/Text";
-import Time "mo:core/Time";
-import List "mo:core/List";
 import Nat "mo:core/Nat";
-import Timer "mo:core/Timer";
+import Array "mo:core/Array";
+import Time "mo:core/Time";
+import Order "mo:core/Order";
+import Text "mo:core/Text";
+import Iter "mo:core/Iter";
 import Float "mo:core/Float";
+import Runtime "mo:core/Runtime";
+import Migration "migration";
 
-
-
+(with migration = Migration.run)
 actor {
   //---------------------
-  // Types & Constants
+  // Types
   //---------------------
   type Product = {
     id : Nat;
@@ -97,7 +95,11 @@ actor {
     paymentAdviceImage : Text;
   };
 
-  public type UserRole = { #admin; #manager; #accounts };
+  public type UserRole = {
+    #admin;
+    #manager;
+    #accounts;
+  };
 
   module UserRole {
     public func toText(role : UserRole) : Text {
@@ -207,21 +209,8 @@ actor {
     };
   };
 
-  func clearExpiredSessions() : async () {
-    let now = Time.now();
-    let expiredTokens = sessions.toArray().filter(func((token, session)) { session.expiry < now });
-    for ((token, _session) in expiredTokens.values()) {
-      sessions.remove(token);
-    };
-  };
-
-  ignore Timer.recurringTimer<system>(
-    #nanoseconds(24 * 3600 * 1000000000),
-    clearExpiredSessions
-  );
-
   //---------------------
-  // New Company Profile APIs
+  // Company Profile APIs
   //---------------------
   public query ({ caller }) func getCompanyProfile() : async CompanyProfile {
     companyProfile;
@@ -340,7 +329,7 @@ actor {
     };
   };
 
-  // New Replace Products With Image Preservation API
+  // Replace Products With Image Preservation API
   public shared ({ caller }) func replaceProductsWithDetails(token : Text, items : [ProductInput]) : async () {
     validateSession(token, ?#admin);
 
@@ -381,8 +370,6 @@ actor {
 
   public shared ({ caller }) func setAllProductsActive(token : Text, active : Bool) : async () {
     validateSession(token, ?#admin);
-
-    // Iterate over the products array to update each product's active status
     for ((productId, product) in products.entries()) {
       let updatedProduct : Product = {
         id = product.id;
@@ -404,9 +391,7 @@ actor {
     products.values().toArray();
   };
 
-  //---------------------
-  // New Product Image Handling API
-  //---------------------
+  // Product Image Handling API
   public shared ({ caller }) func updateProductImage(token : Text, productId : Nat, imageBase64 : Text) : async () {
     validateSession(token, ?#admin);
     switch (products.get(productId)) {
@@ -577,7 +562,7 @@ actor {
   };
 
   //---------------------
-  // Order Management (unchanged)
+  // Order Management
   //---------------------
   public shared ({ caller }) func placeOrder(token : Text, storeNumber : Text, companyName : Text, address : Text, items : [OrderItem]) : async Text {
     validateSession(token, null);
@@ -605,8 +590,6 @@ actor {
 
     orders.add(orderId, order);
     orderIdCounter += 1;
-
-    if (webhookUrl != "") {};
     orderId;
   };
 
@@ -649,8 +632,6 @@ actor {
 
     orders.add(orderId, order);
     orderIdCounter += 1;
-
-    if (webhookUrl != "") {};
     orderId;
   };
 
@@ -728,6 +709,4 @@ actor {
       };
     };
   };
-
-  // ... (remaining unchanged code is omitted for brevity but should be included in the actual file)
 };
