@@ -7,25 +7,34 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  AlertTriangle,
   Camera,
-  Check,
   Download,
-  FileSpreadsheet,
   Loader2,
   Package,
   Pencil,
-  PowerOff,
-  RefreshCw,
+  Plus,
   Search,
   Upload,
   X,
-  Zap,
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -33,748 +42,813 @@ import type { Product, ProductInput } from "../../backend.d";
 import { useActor } from "../../hooks/useActor";
 import XLSX from "../../utils/xlsxShim";
 
-interface DefaultProduct {
-  name: string;
-  unit: string;
-  rate: number;
-}
-
-const DEFAULT_PRODUCTS: DefaultProduct[] = [
-  { name: "Tomato", unit: "KGS", rate: 30 },
-  { name: "Potato", unit: "KGS", rate: 25 },
-  { name: "Onion", unit: "KGS", rate: 35 },
-  { name: "Carrot", unit: "KGS", rate: 40 },
-  { name: "Capsicum", unit: "KGS", rate: 60 },
-  { name: "Cucumber", unit: "KGS", rate: 25 },
-  { name: "Brinjal", unit: "KGS", rate: 30 },
-  { name: "Cauliflower", unit: "EACH", rate: 40 },
-  { name: "Cabbage", unit: "EACH", rate: 30 },
-  { name: "Spinach", unit: "KGS", rate: 20 },
-  { name: "Peas", unit: "KGS", rate: 80 },
-  { name: "Beans", unit: "KGS", rate: 60 },
-  { name: "Ladyfinger", unit: "KGS", rate: 40 },
-  { name: "Bitter Gourd", unit: "KGS", rate: 35 },
-  { name: "Bottle Gourd", unit: "EACH", rate: 25 },
-  { name: "Ridge Gourd", unit: "KGS", rate: 30 },
-  { name: "Snake Gourd", unit: "KGS", rate: 25 },
-  { name: "Drumstick", unit: "KGS", rate: 50 },
-  { name: "Pumpkin", unit: "KGS", rate: 30 },
-  { name: "Ash Gourd", unit: "KGS", rate: 20 },
-  { name: "Radish", unit: "KGS", rate: 20 },
-  { name: "Turnip", unit: "KGS", rate: 25 },
-  { name: "Beetroot", unit: "KGS", rate: 35 },
-  { name: "Sweet Potato", unit: "KGS", rate: 40 },
-  { name: "Yam", unit: "KGS", rate: 30 },
-  { name: "Colocasia", unit: "KGS", rate: 35 },
-  { name: "Raw Banana", unit: "KGS", rate: 30 },
-  { name: "Plantain", unit: "EACH", rate: 5 },
-  { name: "Jackfruit", unit: "KGS", rate: 40 },
-  { name: "Raw Mango", unit: "KGS", rate: 60 },
-  { name: "Lemon", unit: "KGS", rate: 80 },
-  { name: "Ginger", unit: "KGS", rate: 100 },
-  { name: "Garlic", unit: "KGS", rate: 120 },
-  { name: "Green Chilli", unit: "KGS", rate: 80 },
-  { name: "Curry Leaves", unit: "KGS", rate: 100 },
-  { name: "Coriander", unit: "KGS", rate: 60 },
-  { name: "Fenugreek", unit: "KGS", rate: 40 },
-  { name: "Mint", unit: "KGS", rate: 60 },
-  { name: "Spring Onion", unit: "KGS", rate: 40 },
-  { name: "Celery", unit: "KGS", rate: 80 },
-  { name: "Broccoli", unit: "KGS", rate: 80 },
-  { name: "Baby Corn", unit: "KGS", rate: 60 },
-  { name: "Zucchini", unit: "KGS", rate: 70 },
-  { name: "Lettuce", unit: "KGS", rate: 80 },
-  { name: "Iceberg Lettuce", unit: "EACH", rate: 60 },
-  { name: "Cherry Tomato", unit: "KGS", rate: 80 },
-  { name: "Mushroom", unit: "KGS", rate: 120 },
-  { name: "Corn", unit: "EACH", rate: 15 },
-  { name: "Sweet Corn", unit: "EACH", rate: 20 },
-  { name: "Asparagus", unit: "KGS", rate: 150 },
-  { name: "Apple", unit: "KGS", rate: 120 },
-  { name: "Banana", unit: "KGS", rate: 50 },
-  { name: "Mango", unit: "KGS", rate: 80 },
-  { name: "Orange", unit: "KGS", rate: 60 },
-  { name: "Grapes", unit: "KGS", rate: 80 },
-  { name: "Watermelon", unit: "KGS", rate: 25 },
-  { name: "Muskmelon", unit: "KGS", rate: 30 },
-  { name: "Papaya", unit: "KGS", rate: 30 },
-  { name: "Pineapple", unit: "EACH", rate: 60 },
-  { name: "Guava", unit: "KGS", rate: 40 },
-  { name: "Pomegranate", unit: "KGS", rate: 100 },
-  { name: "Kiwi", unit: "EACH", rate: 30 },
-  { name: "Strawberry", unit: "KGS", rate: 200 },
-  { name: "Dragon Fruit", unit: "EACH", rate: 100 },
-  { name: "Avocado", unit: "EACH", rate: 80 },
-  { name: "Pear", unit: "KGS", rate: 80 },
-  { name: "Plum", unit: "KGS", rate: 100 },
-  { name: "Peach", unit: "KGS", rate: 120 },
-  { name: "Litchi", unit: "KGS", rate: 100 },
-  { name: "Coconut", unit: "EACH", rate: 40 },
-  { name: "Tender Coconut", unit: "EACH", rate: 50 },
-  { name: "Date", unit: "KGS", rate: 150 },
-  { name: "Fig", unit: "KGS", rate: 200 },
-  { name: "Blueberry", unit: "KGS", rate: 300 },
-  { name: "Raspberry", unit: "KGS", rate: 250 },
-  { name: "Sapota", unit: "KGS", rate: 60 },
-  { name: "Star Fruit", unit: "KGS", rate: 80 },
-  { name: "Passion Fruit", unit: "KGS", rate: 120 },
-  { name: "Wood Apple", unit: "EACH", rate: 20 },
-  { name: "Custard Apple", unit: "KGS", rate: 60 },
-  { name: "Red Capsicum", unit: "KGS", rate: 80 },
-  { name: "Yellow Capsicum", unit: "KGS", rate: 80 },
-  { name: "Baby Potato", unit: "KGS", rate: 40 },
-  { name: "Cherry", unit: "KGS", rate: 200 },
-  { name: "Amla", unit: "KGS", rate: 60 },
-  { name: "Arbi", unit: "KGS", rate: 40 },
-  { name: "Suran", unit: "KGS", rate: 30 },
-  { name: "Lotus Stem", unit: "KGS", rate: 80 },
-  { name: "Parsley", unit: "KGS", rate: 80 },
-  { name: "Rosemary", unit: "KGS", rate: 100 },
-  { name: "Basil", unit: "KGS", rate: 80 },
-  { name: "Thyme", unit: "KGS", rate: 100 },
-  { name: "Sage", unit: "KGS", rate: 80 },
-  { name: "Leek", unit: "KGS", rate: 60 },
-  { name: "Artichoke", unit: "EACH", rate: 40 },
-  { name: "Pak Choi", unit: "KGS", rate: 60 },
-  { name: "Bok Choy", unit: "KGS", rate: 70 },
-  { name: "Kale", unit: "KGS", rate: 80 },
-  { name: "Swiss Chard", unit: "KGS", rate: 70 },
-  { name: "Water Chestnut", unit: "KGS", rate: 80 },
-];
-
 export default function Products() {
-  const { actor, isFetching } = useActor();
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
   const token = localStorage.getItem("a1vs_admin_token") ?? "";
-  const qc = useQueryClient();
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [isLoadingDefaults, setIsLoadingDefaults] = useState(false);
-  const [editingRateId, setEditingRateId] = useState<string | null>(null);
-  const [editingRateValue, setEditingRateValue] = useState<string>("");
-  const [productSearch, setProductSearch] = useState("");
-  // Per-product image upload state
-  const [uploadingImageId, setUploadingImageId] = useState<string | null>(null);
-  const imageFileRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  const { data: products = [], isLoading } = useQuery<Product[]>({
-    queryKey: ["admin-products"],
+  const [search, setSearch] = useState("");
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [editProduct, setEditProduct] = useState<Product | null>(null);
+  const uploadRef = useRef<HTMLInputElement>(null);
+  const imageUploadRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  // Add/Edit form state
+  const [formName, setFormName] = useState("");
+  const [formUnit, setFormUnit] = useState("KGS");
+  const [formRate, setFormRate] = useState("");
+  const [formActive, setFormActive] = useState(true);
+  const [formImage, setFormImage] = useState("");
+  const [formImagePreview, setFormImagePreview] = useState("");
+
+  // ── Fetch all products ──────────────────────────────────────────────
+  const {
+    data: products = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery<Product[]>({
+    queryKey: ["allProducts", token],
     queryFn: async () => {
+      if (!actor) return [];
       try {
-        return await actor!.getAllProducts(token);
+        return await actor.getAllProducts(token);
       } catch {
-        // getAllProducts doesn't validate session, so this should rarely fail
-        return [];
+        // fallback to public endpoint
+        try {
+          return await actor.getAllProductsPublic();
+        } catch {
+          return [];
+        }
       }
     },
-    enabled: !!actor && !isFetching,
+    enabled: !!actor,
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
+  // ── Add single product ─────────────────────────────────────────────
+  const addMutation = useMutation({
+    mutationFn: async (input: ProductInput) => {
+      if (!actor) throw new Error("Not connected");
+      await actor.replaceProductsWithDetails(token, [
+        ...products.map((p) => ({
+          name: p.name,
+          unit: p.unit,
+          rate: p.rate,
+          imageBase64: p.imageBase64 || undefined,
+        })),
+        input,
+      ]);
+      // Immediately fetch back to confirm save
+      const fresh = await actor
+        .getAllProducts(token)
+        .catch(() => actor.getAllProductsPublic());
+      return fresh;
+    },
+    onSuccess: (fresh) => {
+      queryClient.setQueryData(["allProducts", token], fresh);
+      toast.success("Product added successfully");
+      setShowAddDialog(false);
+      resetForm();
+    },
+    onError: () => toast.error("Failed to add product"),
+  });
+
+  // ── Edit product ───────────────────────────────────────────────────
+  const editMutation = useMutation({
+    mutationFn: async (input: ProductInput & { id: bigint }) => {
+      if (!actor) throw new Error("Not connected");
+      const updated = products.map((p) =>
+        p.id === input.id
+          ? {
+              name: input.name,
+              unit: input.unit,
+              rate: input.rate,
+              imageBase64: input.imageBase64 || p.imageBase64 || undefined,
+            }
+          : {
+              name: p.name,
+              unit: p.unit,
+              rate: p.rate,
+              imageBase64: p.imageBase64 || undefined,
+            },
+      );
+      await actor.replaceProductsWithDetails(token, updated);
+      const fresh = await actor
+        .getAllProducts(token)
+        .catch(() => actor.getAllProductsPublic());
+      return fresh;
+    },
+    onSuccess: (fresh) => {
+      queryClient.setQueryData(["allProducts", token], fresh);
+      toast.success("Product updated");
+      setEditProduct(null);
+      resetForm();
+    },
+    onError: () => toast.error("Failed to update product"),
+  });
+
+  // ── Toggle active ──────────────────────────────────────────────────
   const toggleMutation = useMutation({
-    mutationFn: (productId: bigint) => actor!.toggleProduct(token, productId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-products"] });
-      qc.invalidateQueries({ queryKey: ["active-products"] });
-      qc.invalidateQueries({ queryKey: ["all-products-public"] });
-      toast.success("Product status updated");
+    mutationFn: async (productId: bigint) => {
+      if (!actor) throw new Error("Not connected");
+      await actor.toggleProduct(token, productId);
+      const fresh = await actor
+        .getAllProducts(token)
+        .catch(() => actor.getAllProductsPublic());
+      return fresh;
     },
-    onError: (err: unknown) => {
-      const msg =
-        err instanceof Error ? err.message : "Failed to update product";
-      toast.error(msg);
+    onSuccess: (fresh) => {
+      queryClient.setQueryData(["allProducts", token], fresh);
     },
+    onError: () => toast.error("Failed to toggle product"),
   });
 
-  const setAllActiveMutation = useMutation({
-    mutationFn: (active: boolean) => actor!.setAllProductsActive(token, active),
-    onSuccess: (_, active) => {
-      qc.invalidateQueries({ queryKey: ["admin-products"] });
-      qc.invalidateQueries({ queryKey: ["active-products"] });
-      qc.invalidateQueries({ queryKey: ["all-products-public"] });
+  // ── Activate / Deactivate ALL ──────────────────────────────────────
+  const toggleAllMutation = useMutation({
+    mutationFn: async (active: boolean) => {
+      if (!actor) throw new Error("Not connected");
+      await actor.setAllProductsActive(token, active);
+      const fresh = await actor
+        .getAllProducts(token)
+        .catch(() => actor.getAllProductsPublic());
+      return fresh;
+    },
+    onSuccess: (fresh, active) => {
+      queryClient.setQueryData(["allProducts", token], fresh);
       toast.success(
-        active
-          ? "All products activated — customers can now order"
-          : "All products deactivated — customers will see update notice",
+        active ? "All products activated" : "All products deactivated",
       );
     },
-    onError: (err: unknown) => {
-      const msg = err instanceof Error ? err.message : "Failed to update";
-      toast.error(msg);
-    },
+    onError: () => toast.error("Failed to update all products"),
   });
 
-  const updateRateMutation = useMutation({
-    mutationFn: ({ productId, rate }: { productId: bigint; rate: number }) =>
-      actor!.updateProductRate(token, productId, rate),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-products"] });
-      qc.invalidateQueries({ queryKey: ["active-products"] });
-      qc.invalidateQueries({ queryKey: ["all-products-public"] });
-      toast.success("Rate updated");
-      setEditingRateId(null);
+  // ── Per-product image upload ───────────────────────────────────────
+  const imgMutation = useMutation({
+    mutationFn: async ({
+      productId,
+      imageBase64,
+    }: { productId: bigint; imageBase64: string }) => {
+      if (!actor) throw new Error("Not connected");
+      await actor.updateProductImage(token, productId, imageBase64);
+      const fresh = await actor
+        .getAllProducts(token)
+        .catch(() => actor.getAllProductsPublic());
+      return fresh;
     },
-    onError: (err: unknown) => {
-      const msg = err instanceof Error ? err.message : "Failed to update rate";
-      toast.error(msg);
+    onSuccess: (fresh) => {
+      queryClient.setQueryData(["allProducts", token], fresh);
+      toast.success("Image updated");
     },
+    onError: () => toast.error("Failed to upload image"),
   });
 
-  const handleDownloadTemplate = () => {
-    const sourceData = products.length > 0 ? products : DEFAULT_PRODUCTS;
-    const rows = sourceData.map((p) => ({
-      Name: p.name,
-      Unit: p.unit,
-      Rate:
-        typeof (p as Product).rate === "number"
-          ? (p as Product).rate
-          : (p as DefaultProduct).rate,
-    }));
-    const ws = XLSX.utils.json_to_sheet(rows);
-    ws["!cols"] = [{ wch: 30 }, { wch: 10 }, { wch: 12 }];
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Products");
-    XLSX.writeFile(wb, "a1vs_products_template.xlsx");
-  };
+  // ── Bulk upload ────────────────────────────────────────────────────
+  const bulkMutation = useMutation({
+    mutationFn: async (inputs: ProductInput[]) => {
+      if (!actor) throw new Error("Not connected");
+      // Merge: if name matches existing product, update it; else add new
+      const existingMap: Record<string, Product> = {};
+      for (const p of products) existingMap[p.name.toLowerCase().trim()] = p;
 
-  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !actor) return;
+      const merged: ProductInput[] = [
+        // Start with all existing products
+        ...products.map((p) => ({
+          name: p.name,
+          unit: p.unit,
+          rate: p.rate,
+          imageBase64: p.imageBase64 || undefined,
+        })),
+      ];
 
-    setIsUploading(true);
-    try {
-      const buffer = await file.arrayBuffer();
-      const workbook = XLSX.read(buffer, { type: "array" });
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json(sheet) as Record<string, unknown>[];
-
-      const items: ProductInput[] = rows
-        .map((row) => {
-          const nameVal =
-            row.Name ?? row["Product Name"] ?? row["product name"] ?? row.name;
-          const unitVal = row.Unit ?? row.unit ?? "KGS";
-          const rateVal = row.Rate ?? row.rate ?? 0;
-          const name = typeof nameVal === "string" ? nameVal.trim() : null;
-          const unit =
-            typeof unitVal === "string" ? unitVal.trim().toUpperCase() : "KGS";
-          const rate =
-            typeof rateVal === "number"
-              ? rateVal
-              : Number.parseFloat(String(rateVal)) || 0;
-          if (!name || name.length === 0) return null;
-          return { name, unit, rate };
-        })
-        .filter((v): v is ProductInput => v !== null)
-        .slice(0, 100);
-
-      if (items.length === 0) {
-        toast.error(
-          "No products found. Ensure columns are named 'Name', 'Unit', 'Rate'",
+      for (const input of inputs) {
+        const key = input.name.toLowerCase().trim();
+        const idx = merged.findIndex(
+          (m) => m.name.toLowerCase().trim() === key,
         );
-        return;
+        if (idx >= 0) {
+          // Update existing
+          merged[idx] = {
+            ...merged[idx],
+            ...input,
+            imageBase64: merged[idx].imageBase64,
+          };
+        } else {
+          // Add new
+          merged.push(input);
+        }
       }
 
-      await actor.replaceProductsWithDetails(token, items);
-      qc.invalidateQueries({ queryKey: ["admin-products"] });
-      qc.invalidateQueries({ queryKey: ["active-products"] });
-      qc.invalidateQueries({ queryKey: ["all-products-public"] });
-      toast.success(`${items.length} products uploaded successfully`);
-    } catch (err: unknown) {
-      const msg =
-        err instanceof Error ? err.message : "Failed to upload products";
-      toast.error(msg);
-    } finally {
-      setIsUploading(false);
-      if (fileRef.current) fileRef.current.value = "";
-    }
+      await actor.replaceProductsWithDetails(token, merged);
+      const fresh = await actor
+        .getAllProducts(token)
+        .catch(() => actor.getAllProductsPublic());
+      return { fresh, addedCount: inputs.length };
+    },
+    onSuccess: ({ fresh, addedCount }) => {
+      queryClient.setQueryData(["allProducts", token], fresh);
+      toast.success(
+        `Bulk upload complete: ${addedCount} products processed, ${fresh.length} total`,
+      );
+    },
+    onError: () => toast.error("Bulk upload failed"),
+  });
+
+  // ── Helpers ────────────────────────────────────────────────────────
+  const resetForm = () => {
+    setFormName("");
+    setFormUnit("KGS");
+    setFormRate("");
+    setFormActive(true);
+    setFormImage("");
+    setFormImagePreview("");
   };
 
-  const handleLoadDefaults = async () => {
-    if (!actor) return;
-    setIsLoadingDefaults(true);
-    try {
-      await actor.replaceProductsWithDetails(token, DEFAULT_PRODUCTS);
-      qc.invalidateQueries({ queryKey: ["admin-products"] });
-      qc.invalidateQueries({ queryKey: ["active-products"] });
-      qc.invalidateQueries({ queryKey: ["all-products-public"] });
-      toast.success("100 default products loaded successfully");
-    } catch (err: unknown) {
-      const msg =
-        err instanceof Error ? err.message : "Failed to load default products";
-      toast.error(msg);
-    } finally {
-      setIsLoadingDefaults(false);
-    }
+  const openAddDialog = () => {
+    resetForm();
+    setEditProduct(null);
+    setShowAddDialog(true);
   };
 
-  const startEditRate = (product: Product) => {
-    setEditingRateId(product.id.toString());
-    setEditingRateValue(product.rate.toString());
+  const openEditDialog = (p: Product) => {
+    setEditProduct(p);
+    setFormName(p.name);
+    setFormUnit(p.unit);
+    setFormRate(String(p.rate));
+    setFormActive(p.active);
+    setFormImage(p.imageBase64 || "");
+    setFormImagePreview(
+      p.imageBase64 ? `data:image/jpeg;base64,${p.imageBase64}` : "",
+    );
+    setShowAddDialog(true);
   };
 
-  const commitEditRate = (product: Product) => {
-    const newRate = Number.parseFloat(editingRateValue);
-    if (Number.isNaN(newRate) || newRate < 0) {
-      toast.error("Please enter a valid rate");
+  const handleFormImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      const base64 = result.split(",")[1] || "";
+      setFormImage(base64);
+      setFormImagePreview(result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleFormSubmit = () => {
+    if (!formName.trim()) {
+      toast.error("Product name is required");
       return;
     }
-    updateRateMutation.mutate({ productId: product.id, rate: newRate });
-  };
+    const rate = Number.parseFloat(formRate);
+    if (Number.isNaN(rate) || rate < 0) {
+      toast.error("Enter a valid rate");
+      return;
+    }
 
-  const cancelEditRate = () => {
-    setEditingRateId(null);
-    setEditingRateValue("");
-  };
-
-  const handleProductImageChange = async (
-    e: React.ChangeEvent<HTMLInputElement>,
-    product: Product,
-  ) => {
-    const file = e.target.files?.[0];
-    if (!file || !actor) return;
-    const productIdStr = product.id.toString();
-    setUploadingImageId(productIdStr);
-    try {
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
+    if (editProduct) {
+      editMutation.mutate({
+        id: editProduct.id,
+        name: formName.trim(),
+        unit: formUnit,
+        rate,
+        imageBase64: formImage || undefined,
       });
-      await actor.updateProductImage(token, product.id, base64);
-      qc.invalidateQueries({ queryKey: ["admin-products"] });
-      qc.invalidateQueries({ queryKey: ["active-products"] });
-      qc.invalidateQueries({ queryKey: ["all-products-public"] });
-      toast.success(`Image updated for ${product.name}`);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to upload image";
-      toast.error(msg);
-    } finally {
-      setUploadingImageId(null);
-      const ref = imageFileRefs.current[productIdStr];
-      if (ref) ref.value = "";
+    } else {
+      addMutation.mutate({
+        name: formName.trim(),
+        unit: formUnit,
+        rate,
+        imageBase64: formImage || undefined,
+      });
     }
   };
 
-  // Compute filtered products from search
-  const filteredProducts = (() => {
-    if (!productSearch.trim()) return products;
-    const terms = productSearch
-      .split(",")
-      .map((t) => t.trim().toLowerCase())
-      .filter(Boolean);
-    if (terms.length === 0) return products;
-    return products.filter((p) =>
-      terms.some((term) => p.name.toLowerCase().includes(term)),
-    );
-  })();
+  const handleBulkUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const buffer = evt.target?.result as ArrayBuffer;
+        const wb = XLSX.read(buffer, { type: "array" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows: Record<string, unknown>[] = XLSX.utils.sheet_to_json(ws);
 
-  const allActive = products.length > 0 && products.every((p) => p.active);
-  const anyActive = products.some((p) => p.active);
+        const parsed: ProductInput[] = [];
+        for (const row of rows) {
+          const name = String(row.Name || row.name || "").trim();
+          if (!name) continue;
+          const unit = String(row.Unit || row.unit || "KGS")
+            .trim()
+            .toUpperCase();
+          const rate = Number.parseFloat(String(row.Rate || row.rate || "0"));
+          parsed.push({
+            name,
+            unit: unit || "KGS",
+            rate: Number.isNaN(rate) ? 0 : rate,
+          });
+        }
+
+        if (parsed.length === 0) {
+          toast.error("No valid products found in file");
+          return;
+        }
+        bulkMutation.mutate(parsed);
+      } catch {
+        toast.error("Failed to read file");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = "";
+  };
+
+  const handleDownloadAll = () => {
+    if (products.length === 0) {
+      toast.error("No products to download");
+      return;
+    }
+    const rows = products.map((p) => ({
+      Name: p.name,
+      Unit: p.unit,
+      Rate: p.rate,
+      Status: p.active ? "Active" : "Inactive",
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Products");
+    XLSX.writeFile(wb, "A1VS_Products.xlsx");
+    toast.success("Products downloaded");
+  };
+
+  const handleProductImageUpload = (productId: bigint, file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      const base64 = result.split(",")[1] || "";
+      imgMutation.mutate({ productId, imageBase64: base64 });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // ── Filter by search ───────────────────────────────────────────────
+  const searchTerms = search
+    .split(",")
+    .map((t) => t.trim().toLowerCase())
+    .filter(Boolean);
+
+  const filtered = searchTerms.length
+    ? products.filter((p) =>
+        searchTerms.some((t) => p.name.toLowerCase().includes(t)),
+      )
+    : products;
+
   const activeCount = products.filter((p) => p.active).length;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-heading text-2xl font-bold">Products</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Manage your vegetable and fruit catalog — update rates daily
-        </p>
-      </div>
+    <div className="space-y-6" data-ocid="products.section">
+      {/* Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-heading font-bold text-gray-900">
+            Products
+          </h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {products.length} total &bull; {activeCount} active
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {/* Add New Product */}
+          <Button
+            onClick={openAddDialog}
+            className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+            data-ocid="products.add.open_modal_button"
+          >
+            <Plus className="w-4 h-4" />
+            Add New Product
+          </Button>
 
-      {/* Upload Card */}
-      <Card className="shadow-xs">
-        <CardHeader>
-          <CardTitle className="font-heading text-base flex items-center gap-2">
-            <FileSpreadsheet className="w-4 h-4 text-primary" />
-            Product Management
-          </CardTitle>
-          <CardDescription>
-            Download the template (with current products), edit rates/names,
-            then re-upload. Template columns: Name, Unit (KGS/EACH), Rate.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-3">
+          {/* Upload Bulk */}
           <Button
             variant="outline"
-            onClick={handleDownloadTemplate}
             className="gap-2"
-            data-ocid="products.template.button"
+            onClick={() => uploadRef.current?.click()}
+            disabled={bulkMutation.isPending}
+            data-ocid="products.bulk.upload_button"
           >
-            <Download className="w-4 h-4" />
-            Download Template
-          </Button>
-          <div>
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".csv,.xlsx,.xls"
-              className="hidden"
-              onChange={handleFile}
-            />
-            <Button
-              onClick={() => fileRef.current?.click()}
-              disabled={isUploading || !actor}
-              className="gap-2"
-              data-ocid="products.upload.button"
-            >
-              {isUploading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Upload className="w-4 h-4" />
-              )}
-              {isUploading ? "Uploading..." : "Upload File"}
-            </Button>
-          </div>
-          <Button
-            variant="secondary"
-            onClick={handleLoadDefaults}
-            disabled={isLoadingDefaults || !actor}
-            className="gap-2"
-            data-ocid="products.load_defaults.button"
-          >
-            {isLoadingDefaults ? (
+            {bulkMutation.isPending ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
-              <RefreshCw className="w-4 h-4" />
+              <Upload className="w-4 h-4" />
             )}
-            {isLoadingDefaults ? "Loading..." : "Load 100 Default Products"}
+            Upload Bulk Products
           </Button>
-        </CardContent>
-      </Card>
+          <input
+            ref={uploadRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            className="hidden"
+            onChange={handleBulkUpload}
+          />
 
-      {/* Products Table */}
-      <Card className="shadow-xs">
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="flex items-center gap-2 flex-1">
-              <Package className="w-4 h-4 text-primary" />
-              <span className="font-heading text-base font-semibold">
-                Product List
-              </span>
-              {!isLoading && (
-                <Badge variant="secondary">
-                  {productSearch.trim()
-                    ? `${filteredProducts.length} of ${products.length}`
-                    : `${products.length} products`}
-                </Badge>
-              )}
-            </div>
+          {/* Download All */}
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={handleDownloadAll}
+            data-ocid="products.download.button"
+          >
+            <Download className="w-4 h-4" />
+            Download All Products
+          </Button>
+        </div>
+      </div>
 
-            {/* Master activation controls */}
-            {products.length > 0 && (
-              <div className="flex items-center gap-2 flex-wrap">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <span className="font-medium">
-                    {activeCount}/{products.length} active
-                  </span>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 gap-1.5 text-xs border-success/40 text-success hover:bg-success/10"
-                  onClick={() => setAllActiveMutation.mutate(true)}
-                  disabled={setAllActiveMutation.isPending || allActive}
-                  data-ocid="products.activate_all.button"
-                >
-                  {setAllActiveMutation.isPending ? (
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                  ) : (
-                    <Zap className="w-3 h-3" />
-                  )}
-                  Activate All
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 gap-1.5 text-xs border-destructive/40 text-destructive hover:bg-destructive/10"
-                  onClick={() => setAllActiveMutation.mutate(false)}
-                  disabled={setAllActiveMutation.isPending || !anyActive}
-                  data-ocid="products.deactivate_all.button"
-                >
-                  {setAllActiveMutation.isPending ? (
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                  ) : (
-                    <PowerOff className="w-3 h-3" />
-                  )}
-                  Deactivate All
-                </Button>
-              </div>
-            )}
-          </div>
-
-          {/* Warning banner when all deactivated */}
-          {products.length > 0 && !anyActive && (
-            <div className="mt-3 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">
-              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs font-semibold text-amber-800">
-                  All products deactivated
-                </p>
-                <p className="text-xs text-amber-700 mt-0.5">
-                  Customers will see "Products are updating. We'll be back
-                  soon." on the ordering page. Activate all products to restore
-                  ordering.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Search bar */}
-          {products.length > 0 && (
-            <div className="mt-3 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+      {/* Master toggle + search */}
+      <Card className="border-gray-200">
+        <CardContent className="pt-4 pb-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            {/* Search */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
-                placeholder="Search products... (use commas for multiple, e.g. Tomato, Onion)"
-                value={productSearch}
-                onChange={(e) => setProductSearch(e.target.value)}
+                placeholder="Search products (comma-separated for multiple)..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
                 className="pl-9 h-9 text-sm"
-                data-ocid="products.search.search_input"
+                data-ocid="products.search.input"
               />
-              {productSearch && (
+              {search && (
                 <button
                   type="button"
-                  onClick={() => setProductSearch("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setSearch("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <X className="w-4 h-4" />
                 </button>
               )}
             </div>
+
+            {/* Master toggles */}
+            <div className="flex gap-2 shrink-0">
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-xs h-9 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                onClick={() => toggleAllMutation.mutate(true)}
+                disabled={toggleAllMutation.isPending}
+                data-ocid="products.activate_all.button"
+              >
+                Activate All
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-xs h-9 border-red-300 text-red-600 hover:bg-red-50"
+                onClick={() => toggleAllMutation.mutate(false)}
+                disabled={toggleAllMutation.isPending}
+                data-ocid="products.deactivate_all.button"
+              >
+                Deactivate All
+              </Button>
+            </div>
+          </div>
+
+          {searchTerms.length > 0 && (
+            <p className="text-xs text-gray-500 mt-2">
+              Showing {filtered.length} of {products.length} products
+            </p>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Product list */}
+      <Card className="border-gray-200">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base text-gray-900">
+            Product Catalog
+          </CardTitle>
+          <CardDescription className="text-sm">
+            Manage individual products, rates, images and availability
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="space-y-3">
-              {["p1", "p2", "p3", "p4", "p5"].map((k) => (
-                <Skeleton key={k} className="h-12 w-full" />
+            <div className="space-y-3" data-ocid="products.loading_state">
+              {Array.from({ length: 8 }).map((_, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: skeleton
+                <Skeleton key={i} className="h-14 w-full rounded-lg" />
               ))}
             </div>
-          ) : products.length === 0 ? (
-            <div
-              className="rounded-xl border border-border bg-muted/30 p-8 text-center"
-              data-ocid="products.list.empty_state"
-            >
-              <Package className="w-12 h-12 mx-auto mb-4 text-muted-foreground/40" />
-              <p className="text-base font-semibold text-foreground mb-2">
-                No products yet
+          ) : isError ? (
+            <div className="text-center py-10" data-ocid="products.error_state">
+              <p className="text-red-500 text-sm mb-3">
+                Failed to load products
               </p>
-              <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
-                Click "Load 100 Default Products" to load the full vegetable and
-                fruit catalog, then customise rates and upload images as needed.
-              </p>
-              <Button
-                onClick={handleLoadDefaults}
-                disabled={isLoadingDefaults || !actor}
-                className="gap-2 mx-auto"
-                size="lg"
-                data-ocid="products.list.load_defaults_empty.button"
-              >
-                {isLoadingDefaults ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="w-4 h-4" />
-                )}
-                {isLoadingDefaults ? "Loading..." : "Load 100 Default Products"}
+              <Button size="sm" variant="outline" onClick={() => refetch()}>
+                Retry
               </Button>
             </div>
-          ) : filteredProducts.length === 0 ? (
+          ) : filtered.length === 0 ? (
             <div
-              className="text-center py-12 text-muted-foreground"
-              data-ocid="products.search.empty_state"
+              className="text-center py-16 text-gray-400"
+              data-ocid="products.empty_state"
             >
-              <Search className="w-10 h-10 mx-auto mb-3 opacity-30" />
-              <p className="text-sm font-medium">
-                No products match your search
-              </p>
-              <p className="text-xs mt-1">
-                Try different search terms or clear the search
-              </p>
+              <Package className="w-10 h-10 mx-auto mb-3 opacity-40" />
+              {products.length === 0 ? (
+                <>
+                  <p className="font-medium text-gray-600 mb-1">
+                    No products yet
+                  </p>
+                  <p className="text-sm mb-4">
+                    Click "Add New Product" to add your first product, or use
+                    "Upload Bulk Products" to upload many at once.
+                  </p>
+                  <Button
+                    onClick={openAddDialog}
+                    className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add New Product
+                  </Button>
+                </>
+              ) : (
+                <p className="text-sm">No products match your search</p>
+              )}
             </div>
           ) : (
-            <div className="overflow-x-auto -mx-6">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      #
-                    </th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      Product Name
-                    </th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      Unit
-                    </th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      Rate (₹)
-                    </th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      Toggle
-                    </th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      Image
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredProducts.map((product, idx) => {
-                    const isEditingRate =
-                      editingRateId === product.id.toString();
-                    const productIdStr = product.id.toString();
-                    const isUploadingImage = uploadingImageId === productIdStr;
-                    return (
-                      <tr
-                        key={product.id.toString()}
-                        className="border-b border-border/50 hover:bg-muted/40 transition-colors"
-                        data-ocid={`products.list.item.${idx + 1}`}
-                      >
-                        <td className="px-6 py-3 text-muted-foreground text-xs">
-                          {idx + 1}
-                        </td>
-                        <td className="px-4 py-3 font-medium">
-                          {product.name}
-                        </td>
-                        <td className="px-4 py-3">
-                          <Badge
-                            variant="outline"
-                            className="text-xs font-mono"
-                          >
-                            {product.unit}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-3">
-                          {isEditingRate ? (
-                            <div className="flex items-center gap-1">
-                              <Input
-                                type="number"
-                                min={0}
-                                value={editingRateValue}
-                                onChange={(e) =>
-                                  setEditingRateValue(e.target.value)
-                                }
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter")
-                                    commitEditRate(product);
-                                  if (e.key === "Escape") cancelEditRate();
-                                }}
-                                className="h-7 w-20 text-xs"
-                                autoFocus
-                                data-ocid="products.rate.input"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => commitEditRate(product)}
-                                className="w-6 h-6 rounded flex items-center justify-center bg-success/15 text-success hover:bg-success/25 transition-colors"
-                                disabled={updateRateMutation.isPending}
-                                data-ocid="products.rate.save_button"
-                              >
-                                <Check className="w-3 h-3" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={cancelEditRate}
-                                className="w-6 h-6 rounded flex items-center justify-center bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
-                                data-ocid="products.rate.cancel_button"
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => startEditRate(product)}
-                              className="flex items-center gap-1.5 group text-sm"
-                              data-ocid="products.rate.edit_button"
-                            >
-                              <span className="font-semibold">
-                                ₹{product.rate}
-                              </span>
-                              <Pencil className="w-3 h-3 text-muted-foreground/40 group-hover:text-primary transition-colors" />
-                            </button>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          {product.active ? (
-                            <Badge className="bg-success/15 text-success border-0">
-                              Active
-                            </Badge>
-                          ) : (
-                            <Badge className="bg-amber-100 text-amber-700 border-0">
-                              Inactive
-                            </Badge>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <Switch
-                            id={`toggle-${product.id}`}
-                            checked={product.active}
-                            onCheckedChange={() =>
-                              toggleMutation.mutate(product.id)
-                            }
-                            disabled={toggleMutation.isPending}
-                            data-ocid="products.product.toggle"
-                          />
-                        </td>
-                        <td className="px-4 py-3">
-                          {/* Hidden file input per product */}
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            ref={(el) => {
-                              imageFileRefs.current[productIdStr] = el;
-                            }}
-                            onChange={(e) =>
-                              handleProductImageChange(e, product)
-                            }
-                          />
-                          {isUploadingImage ? (
-                            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                          ) : product.imageBase64 ? (
-                            <div className="flex items-center gap-1.5">
-                              <img
-                                src={product.imageBase64}
-                                alt={product.name}
-                                className="w-9 h-9 rounded object-cover border border-border"
-                              />
-                              <button
-                                type="button"
-                                title="Replace image"
-                                className="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
-                                onClick={() =>
-                                  imageFileRefs.current[productIdStr]?.click()
-                                }
-                                data-ocid="products.image.edit_button"
-                              >
-                                <Camera className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          ) : (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 gap-1 text-xs text-muted-foreground hover:text-primary px-2"
-                              onClick={() =>
-                                imageFileRefs.current[productIdStr]?.click()
-                              }
-                              data-ocid="products.image.upload_button"
-                            >
-                              <Camera className="w-3.5 h-3.5" />
-                              Upload
-                            </Button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div className="space-y-2">
+              {filtered.map((product, idx) => (
+                <ProductRow
+                  key={String(product.id)}
+                  product={product}
+                  idx={idx}
+                  onToggle={() => toggleMutation.mutate(product.id)}
+                  onEdit={() => openEditDialog(product)}
+                  onImageUpload={(file) =>
+                    handleProductImageUpload(product.id, file)
+                  }
+                  imageUploadRefs={imageUploadRefs}
+                  isToggling={toggleMutation.isPending}
+                  isUploadingImage={imgMutation.isPending}
+                />
+              ))}
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Add / Edit Dialog */}
+      <Dialog
+        open={showAddDialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowAddDialog(false);
+            setEditProduct(null);
+            resetForm();
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editProduct ? "Edit Product" : "Add New Product"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            {/* Image preview */}
+            {formImagePreview && (
+              <div className="flex justify-center">
+                <img
+                  src={formImagePreview}
+                  alt="preview"
+                  className="w-24 h-24 object-cover rounded-lg border border-gray-200"
+                />
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label>Product Name *</Label>
+              <Input
+                placeholder="e.g. Tomato"
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+                data-ocid="products.form.name.input"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Unit</Label>
+                <Select value={formUnit} onValueChange={setFormUnit}>
+                  <SelectTrigger data-ocid="products.form.unit.select">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="KGS">KGS</SelectItem>
+                    <SelectItem value="EACH">EACH</SelectItem>
+                    <SelectItem value="PCS">PCS</SelectItem>
+                    <SelectItem value="BOX">BOX</SelectItem>
+                    <SelectItem value="BUNCH">BUNCH</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Rate (₹) *</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  placeholder="0"
+                  value={formRate}
+                  onChange={(e) => setFormRate(e.target.value)}
+                  data-ocid="products.form.rate.input"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Switch
+                checked={formActive}
+                onCheckedChange={setFormActive}
+                data-ocid="products.form.active.switch"
+              />
+              <Label>{formActive ? "Active" : "Inactive"}</Label>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Image (optional)</Label>
+              <label
+                htmlFor="form-image-upload"
+                className="flex items-center gap-2 cursor-pointer rounded-lg border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500 hover:border-emerald-400 hover:text-emerald-600 transition-colors"
+                data-ocid="products.form.image.upload_button"
+              >
+                <Camera className="w-4 h-4" />
+                {formImagePreview ? "Change image" : "Upload image"}
+              </label>
+              <input
+                id="form-image-upload"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFormImageChange}
+              />
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  setShowAddDialog(false);
+                  setEditProduct(null);
+                  resetForm();
+                }}
+                data-ocid="products.form.cancel.button"
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={handleFormSubmit}
+                disabled={addMutation.isPending || editMutation.isPending}
+                data-ocid="products.form.save.button"
+              >
+                {addMutation.isPending || editMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" /> Saving...
+                  </>
+                ) : editProduct ? (
+                  "Save Changes"
+                ) : (
+                  "Add Product"
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ── Product Row Component ─────────────────────────────────────────────────────
+interface ProductRowProps {
+  product: Product;
+  idx: number;
+  onToggle: () => void;
+  onEdit: () => void;
+  onImageUpload: (file: File) => void;
+  imageUploadRefs: React.MutableRefObject<
+    Record<string, HTMLInputElement | null>
+  >;
+  isToggling: boolean;
+  isUploadingImage: boolean;
+}
+
+function ProductRow({
+  product,
+  idx,
+  onToggle,
+  onEdit,
+  onImageUpload,
+  imageUploadRefs,
+  isUploadingImage,
+}: ProductRowProps) {
+  const idStr = String(product.id);
+
+  return (
+    <div
+      className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
+        product.active
+          ? "border-gray-200 bg-white"
+          : "border-gray-100 bg-gray-50"
+      }`}
+      data-ocid={`products.item.${idx + 1}`}
+    >
+      {/* Image */}
+      <div className="shrink-0 w-10 h-10 rounded-md overflow-hidden border border-gray-200 bg-gray-50 flex items-center justify-center">
+        {product.imageBase64 ? (
+          <img
+            src={`data:image/jpeg;base64,${product.imageBase64}`}
+            alt={product.name}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).style.display = "none";
+            }}
+          />
+        ) : (
+          <Package className="w-5 h-5 text-gray-300" />
+        )}
+      </div>
+
+      {/* Name & unit */}
+      <div className="flex-1 min-w-0">
+        <p
+          className={`font-medium text-sm truncate ${product.active ? "text-gray-900" : "text-gray-400"}`}
+        >
+          {product.name}
+        </p>
+        <p className="text-xs text-gray-400">
+          {product.unit} &bull; ₹{product.rate.toFixed(2)}
+        </p>
+      </div>
+
+      {/* Status badge */}
+      <Badge
+        variant={product.active ? "default" : "secondary"}
+        className={`shrink-0 text-xs ${product.active ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-gray-100 text-gray-500"}`}
+      >
+        {product.active ? "Active" : "Inactive"}
+      </Badge>
+
+      {/* Toggle */}
+      <Switch
+        checked={product.active}
+        onCheckedChange={onToggle}
+        className="shrink-0"
+        data-ocid={`products.toggle.${idx + 1}`}
+      />
+
+      {/* Image upload button */}
+      <>
+        <button
+          type="button"
+          title="Upload image"
+          className="shrink-0 p-1.5 rounded-md hover:bg-gray-100 text-gray-400 hover:text-emerald-600 transition-colors"
+          onClick={() => imageUploadRefs.current[idStr]?.click()}
+          disabled={isUploadingImage}
+          data-ocid={`products.image.upload_button.${idx + 1}`}
+        >
+          <Camera className="w-4 h-4" />
+        </button>
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          ref={(el) => {
+            imageUploadRefs.current[idStr] = el;
+          }}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) onImageUpload(file);
+            e.target.value = "";
+          }}
+        />
+      </>
+
+      {/* Edit */}
+      <button
+        type="button"
+        title="Edit product"
+        className="shrink-0 p-1.5 rounded-md hover:bg-gray-100 text-gray-400 hover:text-blue-600 transition-colors"
+        onClick={onEdit}
+        data-ocid={`products.edit_button.${idx + 1}`}
+      >
+        <Pencil className="w-4 h-4" />
+      </button>
     </div>
   );
 }

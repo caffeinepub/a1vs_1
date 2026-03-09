@@ -372,7 +372,7 @@ actor {
   };
 
   // Replace Products With Image Preservation API
-  public shared ({ caller }) func replaceProductsWithDetails(token : Text, items : [ProductInput]) : async () {
+  public shared ({ caller }) func replaceProductsWithDetails(token : Text, items : [ProductInput]) : async [Product] {
     validateSession(token, ?#admin);
 
     // Create new product entries with preserved images where applicable
@@ -408,6 +408,9 @@ actor {
     for ((id, product) in newProducts.entries()) {
       products.add(id, product);
     };
+
+    // Return the saved products so the caller can verify data was persisted
+    products.values().toArray();
   };
 
   public shared ({ caller }) func setAllProductsActive(token : Text, active : Bool) : async () {

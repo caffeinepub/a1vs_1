@@ -1,24 +1,34 @@
-# A1VS
+# A1VS - Rebuild to Version 22 Working State
 
 ## Current State
-The backend uses `Map.empty<>()` (transient heap maps) for all data stores including products, customers, orders, payments, sessions, riders, and company profile. These maps are cleared on every canister redeployment, causing all data (especially products) to be lost after each version update.
+The app has been through many iterations. The backend (main.mo) has stable memory with preupgrade/postupgrade hooks and all features. The frontend .old/ directory contains the last confirmed-working code. The current src/frontend/src/ matches .old/ in structure but the Products page and login have been through multiple broken iterations.
+
+The core issue: products always show as 0 because the frontend race-conditions reads before backend writes, or the "Load 100 Default Products" button approach is unreliable.
 
 ## Requested Changes (Diff)
 
 ### Add
-- Stable storage backing for all data maps using `stable var` arrays
-- `preupgrade` / `postupgrade` system hooks to serialize/deserialize all maps to/from stable arrays
+- New Products page approach: 3 action buttons at top (Add New Product, Upload Bulk Products, Download All Products)
+- "Add New Product" dialog: Name, Unit (Each/Kgs), Rate, optional image upload, Active/Inactive toggle
+- "Upload Bulk Products": CSV/Excel upload with name-based deduplication (update if name matches, add if new)
+- "Download All Products": downloads all products (active + inactive) as Excel
+- Product search bar: single name or comma-separated names to filter product list
+- Per-product image upload button in product list
+- Per-product Active/Inactive toggle inline
+- Per-product Edit button
+- All products load directly from backend on page open (no "Load Default" button)
 
 ### Modify
-- All map declarations converted from `let x = Map.empty<>()` to stable-backed pattern
-- `productIdCounter`, `orderIdCounter`, `paymentIdCounter`, `passwordHash`, `webhookUrl`, `companyProfile` all made `stable var`
-- Frontend Products.tsx empty state: remove the "re-load after update" warning message, replace with a simple first-time setup message
+- Products.tsx: completely rewritten with the 3-button approach, search, inline editing
+- Login flow: keep existing .old version which has proper retry logic and back button
+- All other pages: restore from .old/ working state
 
 ### Remove
-- Auto-load on empty products (no longer needed since products persist)
-- The confusing amber warning box about re-loading after system updates
+- "Load 100 Default Products" button -- replaced by Add New and Bulk Upload
+- All race-condition-prone mutation patterns that show false success then empty list
 
 ## Implementation Plan
-1. Rewrite `main.mo` to use stable arrays + preupgrade/postupgrade hooks for all state
-2. Update `Products.tsx` empty state to say "No products yet - click Load 100 Default Products to get started" (one-time setup, no re-load warning)
-3. Remove the auto-load useEffect from Products.tsx (products now persist, so auto-loading defaults silently would be wrong)
+1. Copy all .old frontend files to src/frontend/src
+2. Rewrite Products.tsx with the new 3-button product management UI
+3. Ensure products page fetches from backend and renders the real list
+4. Validate, build, deploy

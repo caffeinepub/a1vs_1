@@ -81,9 +81,9 @@ export default function Dashboard() {
   });
 
   const { data: products = [], isLoading: productsLoading } = useQuery({
-    queryKey: ["active-products"],
-    queryFn: () => actor!.getActiveProducts(),
-    enabled: !!actor && !isFetching,
+    queryKey: ["admin-products"],
+    queryFn: () => actor!.getAllProducts(token),
+    enabled: !!actor && !isFetching && !!token,
   });
 
   const { data: payments = [], isLoading: paymentsLoading } = useQuery<
