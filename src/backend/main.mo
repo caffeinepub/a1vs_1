@@ -221,15 +221,9 @@ actor {
   };
 
   system func postupgrade() {
-    stableProducts := [];
-    stableCustomers := [];
-    stableOrders := [];
-    stableUsers := [];
-    stableSubUsers := [];
-    stablePayments := [];
-    stableSessions := [];
-    stableRiderAssignments := [];
-    stableRiderProfiles := [];
+    // NOTE: Do NOT clear stable arrays here.
+    // Stable arrays are populated in preupgrade so the runtime can persist them.
+    // Clearing them here would destroy all data on every upgrade.
   };
 
   //---------------------
