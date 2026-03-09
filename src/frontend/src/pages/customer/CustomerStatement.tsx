@@ -106,6 +106,7 @@ export default function CustomerStatement() {
       const from = toNano(new Date(`${fromDate}T00:00:00`));
       const to = toNano(new Date(`${toDate}T23:59:59`));
       let data: StatementEntry[] = [];
+      let usedFallback = false;
       try {
         data = await actor.getMyStatement(token, from, to);
       } catch (err) {
@@ -116,12 +117,83 @@ export default function CustomerStatement() {
           );
           return;
         }
-        if (msg.includes("Access denied") || msg.includes("Unauthorized")) {
-          toast.error("Session expired. Please log out and log in again.");
-          return;
+        // "session has no role" / "Access denied" / "no role" — customer token
+        // doesn't have a role in some backend versions; fall back to building
+        // the statement from orders + payments directly.
+        if (
+          msg.toLowerCase().includes("access denied") ||
+          msg.toLowerCase().includes("unauthorized") ||
+          msg.toLowerCase().includes("no role") ||
+          msg.toLowerCase().includes("session")
+        ) {
+          usedFallback = true;
+          try {
+            // Build statement entries from orders + payments for this store.
+            // getPaymentsByStore may require admin token; use getAllCustomerPayments
+            // (customer-token-aware) as first choice, then fall back gracefully.
+            const [orders, payments] = await Promise.all([
+              actor.getOrdersByStore(token, storeNumber).catch(() => []),
+              actor
+                .getAllCustomerPayments(token)
+                .catch(() =>
+                  actor.getPaymentsByStore(token, storeNumber).catch(() => []),
+                ),
+            ]);
+
+            const fromMs = new Date(`${fromDate}T00:00:00`).getTime();
+            const toMs = new Date(`${toDate}T23:59:59`).getTime();
+
+            const orderEntries: StatementEntry[] = orders
+              .filter((o) => {
+                const ts = Number(o.timestamp) / 1_000_000;
+                return (
+                  ts >= fromMs &&
+                  ts <= toMs &&
+                  o.status !== "deleted" &&
+                  o.totalAmount > 0
+                );
+              })
+              .map((o) => ({
+                entryDate: o.timestamp,
+                entryType: "invoice",
+                referenceNumber: o.invoiceNumber
+                  ? `INV#${o.invoiceNumber}`
+                  : `PO#${o.poNumber}`,
+                description: `Order – ${o.items.length} item${o.items.length !== 1 ? "s" : ""}`,
+                debit: o.totalAmount,
+                credit: 0,
+                storeNumber: o.storeNumber,
+                companyName: o.companyName,
+              }));
+
+            const paymentEntries: StatementEntry[] = payments
+              .filter((p) => {
+                const ts = Number(p.timestamp) / 1_000_000;
+                return ts >= fromMs && ts <= toMs && !p.deleted;
+              })
+              .map((p) => ({
+                entryDate: p.timestamp,
+                entryType: "payment",
+                referenceNumber: p.paymentId,
+                description: `Payment – ${p.paymentMethod}`,
+                debit: 0,
+                credit: p.amount,
+                storeNumber: p.storeNumber,
+                companyName: p.companyName,
+              }));
+
+            data = [...orderEntries, ...paymentEntries];
+          } catch {
+            toast.error("Unable to load statement. Please try again later.");
+            return;
+          }
+        } else {
+          throw err;
         }
-        throw err;
       }
+
+      // Whether we used primary or fallback path, data is ready here
+      void usedFallback; // suppress unused-variable lint warning
       setEntries(
         data.sort((a, b) => Number(a.entryDate) - Number(b.entryDate)),
       );

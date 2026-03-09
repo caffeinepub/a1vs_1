@@ -551,23 +551,21 @@ export default function Products() {
             </div>
           ) : products.length === 0 ? (
             <div
-              className="rounded-xl border border-amber-200 bg-amber-50 p-8 text-center"
+              className="rounded-xl border border-border bg-muted/30 p-8 text-center"
               data-ocid="products.list.empty_state"
             >
-              <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-amber-500" />
-              <p className="text-base font-semibold text-amber-800 mb-2">
-                Products need to be loaded
+              <Package className="w-12 h-12 mx-auto mb-4 text-muted-foreground/40" />
+              <p className="text-base font-semibold text-foreground mb-2">
+                No products yet
               </p>
-              <p className="text-sm text-amber-700 mb-6 max-w-md mx-auto">
-                If you had products before, they need to be re-loaded after each
-                system update. Click "Load 100 Default Products" to restore the
-                full catalog, then re-upload your images and updated rates using
-                the Download Template → Edit → Upload workflow.
+              <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
+                Click "Load 100 Default Products" to load the full vegetable and
+                fruit catalog, then customise rates and upload images as needed.
               </p>
               <Button
                 onClick={handleLoadDefaults}
                 disabled={isLoadingDefaults || !actor}
-                className="gap-2 mx-auto bg-amber-600 hover:bg-amber-700 text-white"
+                className="gap-2 mx-auto"
                 size="lg"
                 data-ocid="products.list.load_defaults_empty.button"
               >
@@ -578,10 +576,6 @@ export default function Products() {
                 )}
                 {isLoadingDefaults ? "Loading..." : "Load 100 Default Products"}
               </Button>
-              <p className="text-xs text-amber-600 mt-4">
-                After loading defaults, use Download Template → Edit → Upload
-                File above to update your product names, units, and rates.
-              </p>
             </div>
           ) : filteredProducts.length === 0 ? (
             <div

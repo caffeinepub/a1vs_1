@@ -60,6 +60,8 @@ export interface ExtendedBackend extends backendInterface {
     email: string,
     password: string,
     roleText: string,
+    name?: string,
+    phone?: string,
   ): Promise<void>;
   subUserLoginV2(email: string, password: string): Promise<string>;
   getAllSubUsers(token: string): Promise<Array<SubUser>>;

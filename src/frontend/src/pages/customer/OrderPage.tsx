@@ -104,8 +104,19 @@ export default function OrderPage() {
 
   // Fetch customer order history for Repeat Orders
   const { data: orderHistory = [] } = useQuery<Order[]>({
-    queryKey: ["customer-orders-history", token],
-    queryFn: () => actor!.getAllCustomerOrders(token),
+    queryKey: ["customer-orders-history", token, storeNumber],
+    queryFn: async () => {
+      try {
+        return await actor!.getAllCustomerOrders(token);
+      } catch {
+        // Fallback: fetch orders directly by store number
+        try {
+          return await actor!.getOrdersByStore(token, storeNumber);
+        } catch {
+          return [];
+        }
+      }
+    },
     enabled: !!actor && !isFetching && !!token,
   });
 

@@ -141,6 +141,8 @@ export default function Users() {
             phoneAsEmail,
             password,
             role,
+            riderName.trim() || phoneAsEmail,
+            phoneAsEmail, // phone = login ID
           );
         } catch {
           // Fall back to basic createSubUser if extended version not available
@@ -164,7 +166,14 @@ export default function Users() {
         }
       } else {
         try {
-          await actor!.createSubUserWithPassword(token, email, password, role);
+          await actor!.createSubUserWithPassword(
+            token,
+            email,
+            password,
+            role,
+            email, // name defaults to email for non-rider
+            "", // phone empty for non-rider (set via edit later)
+          );
         } catch {
           // Fall back to basic createSubUser
           await actor!.createSubUser(

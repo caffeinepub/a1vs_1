@@ -2,14 +2,11 @@ import Map "mo:core/Map";
 import Nat "mo:core/Nat";
 import Array "mo:core/Array";
 import Time "mo:core/Time";
-import Order "mo:core/Order";
 import Text "mo:core/Text";
 import Iter "mo:core/Iter";
 import Float "mo:core/Float";
 import Runtime "mo:core/Runtime";
-import Migration "migration";
 
-(with migration = Migration.run)
 actor {
   //---------------------
   // Types
@@ -157,20 +154,24 @@ actor {
   };
 
   //---------------------
-  // State
+  // Stable Storage Arrays (survive canister upgrades)
   //---------------------
-  let products = Map.empty<Nat, Product>();
-  let customers = Map.empty<Text, Customer>();
-  let orders = Map.empty<Text, Order>();
-  let users = Map.empty<Text, UserRole>();
-  let subUsers = Map.empty<Text, SubUser>();
-  let payments = Map.empty<Text, Payment>();
-  let sessions = Map.empty<Text, SessionToken>();
+  stable var stableProducts : [(Nat, Product)] = [];
+  stable var stableCustomers : [(Text, Customer)] = [];
+  stable var stableOrders : [(Text, Order)] = [];
+  stable var stableUsers : [(Text, UserRole)] = [];
+  stable var stableSubUsers : [(Text, SubUser)] = [];
+  stable var stablePayments : [(Text, Payment)] = [];
+  stable var stableSessions : [(Text, SessionToken)] = [];
+  stable var stableRiderAssignments : [(Text, RiderAssignment)] = [];
+  stable var stableRiderProfiles : [(Text, RiderProfile)] = [];
 
-  let riderAssignments = Map.empty<Text, RiderAssignment>();
-  let riderProfiles = Map.empty<Text, RiderProfile>();
-
-  var companyProfile : CompanyProfile = {
+  stable var stableProductIdCounter : Nat = 1;
+  stable var stableOrderIdCounter : Nat = 1;
+  stable var stablePaymentIdCounter : Nat = 1;
+  stable var stablePasswordHash : Text = "Admin@1234";
+  stable var stableWebhookUrl : Text = "";
+  stable var stableCompanyProfile : CompanyProfile = {
     gstNumber = "";
     contactPhone = "";
     contactEmail = "";
@@ -178,11 +179,58 @@ actor {
     logoBase64 = "";
   };
 
-  var productIdCounter = 1;
-  var orderIdCounter = 1;
-  var paymentIdCounter = 1;
-  var passwordHash = "Admin@1234";
-  var webhookUrl = "";
+  //---------------------
+  // Runtime Maps (loaded from stable on startup)
+  //---------------------
+  let products = Map.fromIter<Nat, Product>(stableProducts.values());
+  let customers = Map.fromIter<Text, Customer>(stableCustomers.values());
+  let orders = Map.fromIter<Text, Order>(stableOrders.values());
+  let users = Map.fromIter<Text, UserRole>(stableUsers.values());
+  let subUsers = Map.fromIter<Text, SubUser>(stableSubUsers.values());
+  let payments = Map.fromIter<Text, Payment>(stablePayments.values());
+  let sessions = Map.fromIter<Text, SessionToken>(stableSessions.values());
+  let riderAssignments = Map.fromIter<Text, RiderAssignment>(stableRiderAssignments.values());
+  let riderProfiles = Map.fromIter<Text, RiderProfile>(stableRiderProfiles.values());
+
+  var companyProfile : CompanyProfile = stableCompanyProfile;
+  var productIdCounter = stableProductIdCounter;
+  var orderIdCounter = stableOrderIdCounter;
+  var paymentIdCounter = stablePaymentIdCounter;
+  var passwordHash = stablePasswordHash;
+  var webhookUrl = stableWebhookUrl;
+
+  //---------------------
+  // Upgrade Hooks
+  //---------------------
+  system func preupgrade() {
+    stableProducts := products.entries().toArray();
+    stableCustomers := customers.entries().toArray();
+    stableOrders := orders.entries().toArray();
+    stableUsers := users.entries().toArray();
+    stableSubUsers := subUsers.entries().toArray();
+    stablePayments := payments.entries().toArray();
+    stableSessions := sessions.entries().toArray();
+    stableRiderAssignments := riderAssignments.entries().toArray();
+    stableRiderProfiles := riderProfiles.entries().toArray();
+    stableProductIdCounter := productIdCounter;
+    stableOrderIdCounter := orderIdCounter;
+    stablePaymentIdCounter := paymentIdCounter;
+    stablePasswordHash := passwordHash;
+    stableWebhookUrl := webhookUrl;
+    stableCompanyProfile := companyProfile;
+  };
+
+  system func postupgrade() {
+    stableProducts := [];
+    stableCustomers := [];
+    stableOrders := [];
+    stableUsers := [];
+    stableSubUsers := [];
+    stablePayments := [];
+    stableSessions := [];
+    stableRiderAssignments := [];
+    stableRiderProfiles := [];
+  };
 
   //---------------------
   // Helper Functions
