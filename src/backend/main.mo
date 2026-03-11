@@ -831,6 +831,36 @@ actor {
     };
   };
 
+  // Delete an order (soft-delete: sets status to "deleted" and records the reason)
+  public shared ({ caller }) func deleteOrder(token : Text, orderId : Text, reason : Text) : async () {
+    validateSession(token, null);
+    switch (orders.get(orderId)) {
+      case (null) { Runtime.trap("Order not found") };
+      case (?order) {
+        let updatedOrder : Order = {
+          orderId = order.orderId;
+          storeNumber = order.storeNumber;
+          companyName = order.companyName;
+          address = order.address;
+          items = order.items;
+          timestamp = order.timestamp;
+          status = "deleted";
+          totalAmount = order.totalAmount;
+          invoiceNumber = order.invoiceNumber;
+          paymentMethod = order.paymentMethod;
+          poNumber = order.poNumber;
+          gstNumber = order.gstNumber;
+          deleteReason = ?reason;
+          deliverySignature = order.deliverySignature;
+          deliverySignedAt = order.deliverySignedAt;
+          deliveryStartTime = order.deliveryStartTime;
+          deliveryEndTime = order.deliveryEndTime;
+        };
+        orders.add(orderId, updatedOrder);
+      };
+    };
+  };
+
   public shared ({ caller }) func editOrderItems(token : Text, orderId : Text, newItems : [OrderItem]) : async () {
     validateSession(token, null);
 

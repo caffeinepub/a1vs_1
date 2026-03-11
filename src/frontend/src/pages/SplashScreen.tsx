@@ -41,8 +41,7 @@ export default function SplashScreen() {
   }, [alreadyShown]);
 
   const handleCustomerLogin = () => {
-    sessionStorage.setItem("a1vs_show_customer_login", "true");
-    navigate({ to: "/" });
+    navigate({ to: "/login" });
   };
 
   const handleAdminPortal = () => {

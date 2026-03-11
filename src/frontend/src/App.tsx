@@ -49,10 +49,6 @@ const customerIndexRoute = createRoute({
     if (localStorage.getItem("a1vs_customer_token")) {
       return <StoreSelectorPage />;
     }
-    // If the customer login flag is set (coming from splash), show StoreSelectorPage
-    if (sessionStorage.getItem("a1vs_show_customer_login") === "true") {
-      return <StoreSelectorPage />;
-    }
     return <SplashScreen />;
   },
 });
@@ -62,6 +58,13 @@ const splashRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/splash",
   component: SplashScreen,
+});
+
+// Dedicated customer login route — avoids same-path navigation issue from splash
+const loginRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/login",
+  component: StoreSelectorPage,
 });
 
 const orderRoute = createRoute({
@@ -208,6 +211,7 @@ const riderDashboardRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   customerIndexRoute,
   splashRoute,
+  loginRoute,
   orderRoute,
   orderConfirmationRoute,
   customerLayoutRoute.addChildren([

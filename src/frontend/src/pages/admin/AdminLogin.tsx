@@ -19,7 +19,7 @@ import {
   Wifi,
   WifiOff,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useExtendedActor } from "../../hooks/useExtendedActor";
 import {
@@ -67,6 +67,15 @@ export default function AdminLogin() {
   const navigate = useNavigate();
 
   const isActorReady = !!actor && !isFetching;
+
+  // Clear stale tokens on login page mount — backend sessions are wiped after each deployment
+  useEffect(() => {
+    localStorage.removeItem("a1vs_admin_token");
+    localStorage.removeItem("a1vs_admin_role");
+    localStorage.removeItem("a1vs_rider_token");
+    localStorage.removeItem("a1vs_rider_id");
+    localStorage.removeItem("a1vs_rider_name");
+  }, []);
 
   // Do NOT auto-redirect based on a stored token — tokens are invalidated on every new deployment.
   // The user must log in again to get a fresh session from the backend.

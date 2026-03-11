@@ -15,7 +15,7 @@ import {
   Store,
   Wifi,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { useActor } from "../../hooks/useActor";
 import {
@@ -45,11 +45,6 @@ export default function StoreSelectorPage() {
   const isLoggedIn = !!localStorage.getItem("a1vs_customer_token");
   const currentStore = localStorage.getItem("a1vs_store_number");
   const currentCompany = localStorage.getItem("a1vs_company_name");
-
-  // Clear the splash flag on mount (we've arrived at the login page)
-  useEffect(() => {
-    sessionStorage.removeItem("a1vs_show_customer_login");
-  }, []);
 
   const attemptFindStore = async (retries = 3): Promise<void> => {
     if (!actor) return;
@@ -185,8 +180,6 @@ export default function StoreSelectorPage() {
             <button
               type="button"
               onClick={() => {
-                // Clear flags so we go back to portal selection phase
-                sessionStorage.removeItem("a1vs_show_customer_login");
                 navigate({ to: "/splash" });
               }}
               className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-white/70 transition-colors"
