@@ -130,9 +130,9 @@ export default function Dashboard() {
     .filter((o) => o.status === "delivered" || o.status === "accepted")
     .reduce((sum, o) => sum + o.totalAmount, 0);
 
-  // Pending Due Amount = total debits (order amounts) minus total credits (payments)
+  // Pending Due Amount = only delivered invoices as debits (delivered orders only)
   const totalDebits = orders
-    .filter((o) => o.status !== "deleted")
+    .filter((o) => o.status === "delivered")
     .reduce((sum, o) => sum + o.totalAmount, 0);
   const totalCredits = payments
     .filter((p) => !p.deleted)

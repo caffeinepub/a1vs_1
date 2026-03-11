@@ -52,5 +52,4 @@ export interface RiderProfile {
   email: string;
   name: string;
   phone: string;
-  active: boolean;
 }

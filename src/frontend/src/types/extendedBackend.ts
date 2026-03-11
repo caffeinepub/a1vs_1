@@ -1,6 +1,5 @@
-import type { Order, backendInterface } from "../backend.d";
+import type { Order, Payment, backendInterface } from "../backend.d";
 import type {
-  Payment,
   RiderAssignment,
   RiderProfile,
   StatementEntry,
@@ -17,7 +16,7 @@ export interface ExtendedBackend extends backendInterface {
     chequeDetails: string | null,
     utrDetails: string | null,
     paymentAdviceImage: string,
-  ): Promise<void>;
+  ): Promise<string>;
   editPayment(
     token: string,
     paymentId: string,

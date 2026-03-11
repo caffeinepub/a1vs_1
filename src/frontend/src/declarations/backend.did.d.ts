@@ -64,6 +64,19 @@ export interface OrderItem {
   'productId' : bigint,
   'productName' : string,
 }
+export interface Payment {
+  'deleted' : boolean,
+  'paymentMethod' : string,
+  'paymentAdviceImage' : string,
+  'storeNumber' : string,
+  'deleteReason' : [] | [string],
+  'utrDetails' : [] | [string],
+  'paymentId' : string,
+  'timestamp' : Time,
+  'companyName' : string,
+  'amount' : number,
+  'chequeDetails' : [] | [string],
+}
 export interface Product {
   'id' : bigint,
   'active' : boolean,
@@ -85,15 +98,43 @@ export type UserRole = { 'manager' : null } |
 export interface _SERVICE {
   'addCustomer' : ActorMethod<[string, CustomerInput], undefined>,
   'addCustomersOnly' : ActorMethod<[string, Array<CustomerInput>], undefined>,
+  'addPayment' : ActorMethod<
+    [
+      string,
+      string,
+      string,
+      number,
+      string,
+      [] | [string],
+      [] | [string],
+      string,
+    ],
+    string
+  >,
   'adminLogin' : ActorMethod<[string, string], string>,
   'changeAdminPassword' : ActorMethod<[string, string], undefined>,
   'createSubUser' : ActorMethod<[string, string, UserRole], undefined>,
   'customerLogin' : ActorMethod<[string, string], string>,
   'deleteCustomer' : ActorMethod<[string, string], undefined>,
   'editOrderItems' : ActorMethod<[string, string, Array<OrderItem>], undefined>,
+  'editPayment' : ActorMethod<
+    [
+      string,
+      string,
+      string,
+      string,
+      number,
+      string,
+      [] | [string],
+      [] | [string],
+      string,
+    ],
+    undefined
+  >,
   'getActiveProducts' : ActorMethod<[], Array<Product>>,
   'getAllCustomers' : ActorMethod<[string], Array<Customer>>,
   'getAllOrders' : ActorMethod<[string], Array<Order>>,
+  'getAllPayments' : ActorMethod<[string], Array<Payment>>,
   'getAllProducts' : ActorMethod<[string], Array<Product>>,
   'getAllProductsPublic' : ActorMethod<[], Array<Product>>,
   'getCompanyProfile' : ActorMethod<[], CompanyProfile>,
@@ -109,6 +150,7 @@ export interface _SERVICE {
     ]
   >,
   'getOrdersByStore' : ActorMethod<[string, string], Array<Order>>,
+  'getPaymentsByStore' : ActorMethod<[string, string], Array<Payment>>,
   'placeOrder' : ActorMethod<
     [string, string, string, string, Array<OrderItem>],
     string
@@ -121,10 +163,11 @@ export interface _SERVICE {
   'replaceProducts' : ActorMethod<[string, Array<string>], undefined>,
   'replaceProductsWithDetails' : ActorMethod<
     [string, Array<ProductInput>],
-    undefined
+    Array<Product>
   >,
   'setAllProductsActive' : ActorMethod<[string, boolean], undefined>,
   'setCompanyProfile' : ActorMethod<[string, CompanyProfile], undefined>,
+  'softDeletePayment' : ActorMethod<[string, string, string], undefined>,
   'subUserLogin' : ActorMethod<[string, string], string>,
   'toggleCustomerActive' : ActorMethod<[string, string], undefined>,
   'toggleProduct' : ActorMethod<[string, bigint], undefined>,

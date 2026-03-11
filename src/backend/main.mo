@@ -7,6 +7,8 @@ import Iter "mo:core/Iter";
 import Float "mo:core/Float";
 import Runtime "mo:core/Runtime";
 
+
+
 actor {
   //---------------------
   // Types
@@ -108,6 +110,8 @@ actor {
     };
   };
 
+  // SubUser type -- kept compatible with previous stable shape (no name/phone).
+  // Rider name/phone is stored separately in riderProfiles.
   type SubUser = {
     email : Text;
     password : Text;
@@ -286,13 +290,121 @@ actor {
     passwordHash := newPassword;
   };
 
+  // Legacy createSubUser (kept for compatibility)
   public shared ({ caller }) func createSubUser(token : Text, email : Text, role : UserRole) : async () {
     validateSession(token, ?#admin);
     if (users.containsKey(email)) { Runtime.trap("Email already exists") };
     users.add(email, role);
   };
 
-  public shared ({ caller }) func subUserLogin(email : Text, _password : Text) : async Text {
+  // Full sub-user creation with password, name, phone, and role text.
+  // name/phone are stored in riderProfiles (for riders) to avoid stable type changes.
+  public shared ({ caller }) func createSubUserWithPassword(
+    token : Text,
+    email : Text,
+    password : Text,
+    roleText : Text,
+    name : Text,
+    phone : Text,
+  ) : async () {
+    validateSession(token, ?#admin);
+    if (subUsers.containsKey(email)) { Runtime.trap("User already exists") };
+    let su : SubUser = {
+      email;
+      password;
+      roleText;
+      active = true;
+    };
+    subUsers.add(email, su);
+    // Always save a rider profile entry so name/phone are retrievable
+    let rp : RiderProfile = { email; name; phone };
+    riderProfiles.add(email, rp);
+  };
+
+  // Get all sub-users (Team Accounts)
+  public shared ({ caller }) func getAllSubUsers(token : Text) : async [SubUser] {
+    validateSession(token, null);
+    subUsers.values().toArray();
+  };
+
+  // Delete a sub-user (admin only)
+  public shared ({ caller }) func deleteSubUser(token : Text, email : Text) : async () {
+    validateSession(token, ?#admin);
+    if (subUsers.containsKey(email)) {
+      subUsers.remove(email);
+    };
+    if (riderProfiles.containsKey(email)) {
+      riderProfiles.remove(email);
+    };
+  };
+
+  // Toggle sub-user active status
+  public shared ({ caller }) func toggleSubUser(token : Text, email : Text) : async () {
+    validateSession(token, ?#admin);
+    switch (subUsers.get(email)) {
+      case (null) { Runtime.trap("User not found") };
+      case (?su) {
+        let updated : SubUser = {
+          email = su.email;
+          password = su.password;
+          roleText = su.roleText;
+          active = not su.active;
+        };
+        subUsers.add(email, updated);
+      };
+    };
+  };
+
+  // Change sub-user password (admin only)
+  public shared ({ caller }) func changeSubUserPassword(token : Text, email : Text, newPassword : Text) : async () {
+    validateSession(token, ?#admin);
+    switch (subUsers.get(email)) {
+      case (null) { Runtime.trap("User not found") };
+      case (?su) {
+        let updated : SubUser = {
+          email = su.email;
+          password = newPassword;
+          roleText = su.roleText;
+          active = su.active;
+        };
+        subUsers.add(email, updated);
+      };
+    };
+  };
+
+  // Save / update a rider profile (name and phone for any sub-user)
+  public shared ({ caller }) func saveRiderProfile(token : Text, email : Text, name : Text, phone : Text) : async () {
+    validateSession(token, null);
+    let rp : RiderProfile = { email; name; phone };
+    riderProfiles.add(email, rp);
+  };
+
+  // Get all rider profiles
+  public shared ({ caller }) func getAllRiderProfiles(token : Text) : async [RiderProfile] {
+    validateSession(token, null);
+    riderProfiles.values().toArray();
+  };
+
+  // Sub-user / Rider login (checks subUsers map with password validation)
+  public shared ({ caller }) func subUserLogin(email : Text, password : Text) : async Text {
+    // First check full subUsers map (supports password validation)
+    switch (subUsers.get(email)) {
+      case (?su) {
+        if (su.password != password) { Runtime.trap("Invalid credentials") };
+        if (not su.active) { Runtime.trap("Account is inactive") };
+        let token = generateToken();
+        let session : SessionToken = {
+          token;
+          role = ?#manager;
+          storeNumber = null;
+          expiry = Time.now() + (24 * 3600 * 1000000000);
+        };
+        sessions.add(token, session);
+        return token;
+      };
+      case (null) {};
+    };
+    // Fallback: check legacy users map (no password validation)
     switch (users.get(email)) {
       case (null) { Runtime.trap("Invalid credentials") };
       case (?role) {
@@ -751,6 +863,105 @@ actor {
         };
 
         orders.add(orderId, updatedOrder);
+      };
+    };
+  };
+
+  //---------------------
+  // Payment Management (server-side, visible on all devices)
+  //---------------------
+  public shared ({ caller }) func addPayment(
+    token : Text,
+    storeNumber : Text,
+    companyName : Text,
+    amount : Float,
+    paymentMethod : Text,
+    chequeDetails : ?Text,
+    utrDetails : ?Text,
+    paymentAdviceImage : Text,
+  ) : async Text {
+    validateSession(token, null);
+    let paymentId = "PAY-" # paymentIdCounter.toText();
+    let payment : Payment = {
+      paymentId;
+      storeNumber;
+      companyName;
+      amount;
+      paymentMethod;
+      chequeDetails;
+      utrDetails;
+      timestamp = Time.now();
+      deleted = false;
+      deleteReason = null;
+      paymentAdviceImage;
+    };
+    payments.add(paymentId, payment);
+    paymentIdCounter += 1;
+    paymentId;
+  };
+
+  public shared ({ caller }) func getAllPayments(token : Text) : async [Payment] {
+    validateSession(token, null);
+    payments.values().toArray();
+  };
+
+  public shared ({ caller }) func getPaymentsByStore(token : Text, storeNumber : Text) : async [Payment] {
+    validateSession(token, null);
+    payments.values().filter(func(p) { p.storeNumber == storeNumber }).toArray();
+  };
+
+  public shared ({ caller }) func editPayment(
+    token : Text,
+    paymentId : Text,
+    storeNumber : Text,
+    companyName : Text,
+    amount : Float,
+    paymentMethod : Text,
+    chequeDetails : ?Text,
+    utrDetails : ?Text,
+    paymentAdviceImage : Text,
+  ) : async () {
+    validateSession(token, null);
+    switch (payments.get(paymentId)) {
+      case (null) { Runtime.trap("Payment not found") };
+      case (?existing) {
+        let updated : Payment = {
+          paymentId = existing.paymentId;
+          storeNumber;
+          companyName;
+          amount;
+          paymentMethod;
+          chequeDetails;
+          utrDetails;
+          timestamp = existing.timestamp;
+          deleted = existing.deleted;
+          deleteReason = existing.deleteReason;
+          paymentAdviceImage = if (paymentAdviceImage == "") { existing.paymentAdviceImage } else { paymentAdviceImage };
+        };
+        payments.add(paymentId, updated);
+      };
+    };
+  };
+
+  public shared ({ caller }) func softDeletePayment(token : Text, paymentId : Text, reason : Text) : async () {
+    validateSession(token, null);
+    switch (payments.get(paymentId)) {
+      case (null) { Runtime.trap("Payment not found") };
+      case (?existing) {
+        let updated : Payment = {
+          paymentId = existing.paymentId;
+          storeNumber = existing.storeNumber;
+          companyName = existing.companyName;
+          amount = existing.amount;
+          paymentMethod = existing.paymentMethod;
+          chequeDetails = existing.chequeDetails;
+          utrDetails = existing.utrDetails;
+          timestamp = existing.timestamp;
+          deleted = true;
+          deleteReason = ?reason;
+          paymentAdviceImage = existing.paymentAdviceImage;
+        };
+        payments.add(paymentId, updated);
       };
     };
   };

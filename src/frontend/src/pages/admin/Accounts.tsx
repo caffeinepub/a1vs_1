@@ -42,9 +42,9 @@ import {
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import type { CompanyProfile, Customer } from "../../backend.d";
+import type { CompanyProfile, Customer, Payment } from "../../backend.d";
 import { useExtendedActor } from "../../hooks/useExtendedActor";
-import type { Payment, StatementEntry } from "../../types/appTypes";
+import type { StatementEntry } from "../../types/appTypes";
 import { generateStatementPDF } from "../../utils/pdfUtils";
 
 function formatDate(timestamp: bigint | number): string {
@@ -55,10 +55,6 @@ function formatDate(timestamp: bigint | number): string {
     month: "short",
     year: "numeric",
   });
-}
-
-function toNano(date: Date): bigint {
-  return BigInt(date.getTime()) * 1_000_000n;
 }
 
 function getQuickRange(period: string): { from: Date; to: Date } {
@@ -141,20 +137,57 @@ function CustomerStatementTab() {
     }
     setIsLoadingStmt(true);
     try {
-      const from = toNano(new Date(`${fromDate}T00:00:00`));
-      const to = toNano(new Date(`${toDate}T23:59:59`));
       let data: StatementEntry[] = [];
-      try {
-        data = await actor.getCustomerStatement(token, selectedStore, from, to);
-      } catch (err) {
-        if (err instanceof Error && err.message.includes("is not a function")) {
-          toast.error(
-            "Statement feature requires backend update. Please contact support.",
+      const fromMs = new Date(`${fromDate}T00:00:00`).getTime();
+      const toMs = new Date(`${toDate}T23:59:59`).getTime();
+
+      const [orders, payments] = await Promise.all([
+        actor.getOrdersByStore(token, selectedStore).catch(() => []),
+        actor.getPaymentsByStore(token, selectedStore).catch(() => []),
+      ]);
+
+      const orderEntries: StatementEntry[] = orders
+        .filter((o) => {
+          const ts = Number(o.timestamp) / 1_000_000;
+          return (
+            ts >= fromMs &&
+            ts <= toMs &&
+            o.status === "delivered" &&
+            o.totalAmount > 0
           );
-          return;
-        }
-        throw err;
-      }
+        })
+        .map((o) => ({
+          entryDate: o.timestamp,
+          entryType: "invoice",
+          referenceNumber: o.invoiceNumber
+            ? `INV#${o.invoiceNumber}`
+            : `PO#${o.poNumber ?? o.orderId}`,
+          description: o.invoiceNumber
+            ? `Invoice #${o.invoiceNumber}`
+            : `PO #${o.poNumber ?? o.orderId}`,
+          debit: o.totalAmount,
+          credit: 0,
+          storeNumber: o.storeNumber,
+          companyName: o.companyName,
+        }));
+
+      const paymentEntries: StatementEntry[] = payments
+        .filter((p) => {
+          const tsMs = Number(p.timestamp) / 1_000_000;
+          return tsMs >= fromMs && tsMs <= toMs && !p.deleted;
+        })
+        .map((p) => ({
+          entryDate: p.timestamp,
+          entryType: "payment",
+          referenceNumber: p.paymentId,
+          description: `Payment – ${p.paymentMethod}`,
+          debit: 0,
+          credit: p.amount,
+          storeNumber: p.storeNumber,
+          companyName: p.companyName,
+        }));
+
+      data = [...orderEntries, ...paymentEntries];
       setEntries(
         data.sort((a, b) => Number(a.entryDate) - Number(b.entryDate)),
       );
@@ -392,20 +425,62 @@ function CompanyStatementTab() {
     if (!actor) return;
     setIsLoadingStmt(true);
     try {
-      const from = toNano(new Date(`${fromDate}T00:00:00`));
-      const to = toNano(new Date(`${toDate}T23:59:59`));
       let data: StatementEntry[] = [];
-      try {
-        data = await actor.getCompanyStatement(token, from, to);
-      } catch (err) {
-        if (err instanceof Error && err.message.includes("is not a function")) {
-          toast.error(
-            "Company statement feature requires backend update. Please contact support.",
+      const fromMs = new Date(`${fromDate}T00:00:00`).getTime();
+      const toMs = new Date(`${toDate}T23:59:59`).getTime();
+
+      const [orders, payments] = await Promise.all([
+        actor.getAllOrders(token).catch(() => []),
+        actor.getAllPayments(token).catch(() => []),
+      ]);
+
+      const orderEntries: StatementEntry[] = orders
+        .filter((o) => {
+          const ts = Number(o.timestamp) / 1_000_000;
+          return (
+            ts >= fromMs &&
+            ts <= toMs &&
+            o.status === "delivered" &&
+            o.totalAmount > 0
           );
-          return;
-        }
-        throw err;
-      }
+        })
+        .map((o) => ({
+          entryDate: o.timestamp,
+          entryType: "invoice",
+          referenceNumber: o.invoiceNumber
+            ? `INV#${o.invoiceNumber}`
+            : `PO#${o.poNumber ?? o.orderId}`,
+          description: o.invoiceNumber
+            ? `Invoice #${o.invoiceNumber} – ${o.companyName}`
+            : `PO #${o.poNumber ?? o.orderId} – ${o.companyName}`,
+          debit: o.totalAmount,
+          credit: 0,
+          storeNumber: o.storeNumber,
+          companyName: o.companyName,
+        }));
+
+      const paymentEntries: StatementEntry[] = payments
+        .filter((p) => {
+          const tsMs = Number(p.timestamp) / 1_000_000;
+          return tsMs >= fromMs && tsMs <= toMs && !p.deleted;
+        })
+        .map((p) => ({
+          entryDate: p.timestamp,
+          entryType: "payment",
+          referenceNumber:
+            p.paymentMethod === "online"
+              ? (p.utrDetails ?? "Online")
+              : p.paymentMethod === "cheque"
+                ? (p.chequeDetails ?? "Cheque")
+                : "Cash",
+          description: `Payment – ${p.companyName}`,
+          debit: 0,
+          credit: p.amount,
+          storeNumber: p.storeNumber,
+          companyName: p.companyName,
+        }));
+
+      data = [...orderEntries, ...paymentEntries];
       setEntries(
         data.sort((a, b) => Number(a.entryDate) - Number(b.entryDate)),
       );
@@ -604,8 +679,6 @@ function CompanyStatementTab() {
 function PaymentFeedTab() {
   const { actor, isFetching } = useExtendedActor();
   const token = localStorage.getItem("a1vs_admin_token") ?? "";
-  const qc = useQueryClient();
-
   const [selectedStore, setSelectedStore] = useState("");
   const [amount, setAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
@@ -639,19 +712,22 @@ function PaymentFeedTab() {
     enabled: !!actor && !isFetching && !!token,
   });
 
+  const queryClient = useQueryClient();
+
   const { data: recentPayments = [], isLoading: paymentsLoading } = useQuery<
     Payment[]
   >({
     queryKey: ["all-payments", token],
     queryFn: async () => {
-      try {
-        return await actor!.getAllPayments(token);
-      } catch {
-        return [];
-      }
+      if (!actor) return [];
+      return actor.getAllPayments(token);
     },
     enabled: !!actor && !isFetching && !!token,
   });
+
+  const refreshPayments = () => {
+    queryClient.invalidateQueries({ queryKey: ["all-payments", token] });
+  };
 
   const selectedCustomer = customers.find(
     (c) => c.storeNumber === selectedStore,
@@ -674,37 +750,30 @@ function PaymentFeedTab() {
 
   const addPaymentMutation = useMutation({
     mutationFn: async () => {
+      if (!actor) throw new Error("Not connected");
       const amtNum = Number.parseFloat(amount);
       if (Number.isNaN(amtNum) || amtNum <= 0)
         throw new Error("Invalid amount");
-      try {
-        return await actor!.addPayment(
-          token,
-          selectedStore,
-          selectedCustomer?.companyName ?? "",
-          amtNum,
-          paymentMethod,
-          paymentMethod === "cheque" ? chequeDetails : null,
-          paymentMethod === "online" ? utrDetails : null,
-          paymentAdviceImage,
-        );
-      } catch (err) {
-        if (err instanceof Error && err.message.includes("is not a function")) {
-          throw new Error(
-            "Payment recording is not yet available. Please update the backend.",
-          );
-        }
-        throw err;
-      }
+      await actor.addPayment(
+        token,
+        selectedStore,
+        selectedCustomer?.companyName ?? "",
+        amtNum,
+        paymentMethod,
+        paymentMethod === "cheque" ? chequeDetails : null,
+        paymentMethod === "online" ? utrDetails : null,
+        paymentAdviceImage,
+      );
     },
     onSuccess: () => {
       toast.success("Payment recorded successfully");
+      queryClient.invalidateQueries({ queryKey: ["all-payments", token] });
       setAmount("");
       setChequeDetails("");
       setUtrDetails("");
       setPaymentAdviceImage("");
       if (adviceImageRef.current) adviceImageRef.current.value = "";
-      qc.invalidateQueries({ queryKey: ["all-payments"] });
+      refreshPayments();
     },
     onError: (err) => {
       toast.error(
@@ -719,33 +788,24 @@ function PaymentFeedTab() {
       const amtNum = Number.parseFloat(editAmount);
       if (Number.isNaN(amtNum) || amtNum <= 0)
         throw new Error("Invalid amount");
-      try {
-        return await actor!.editPayment(
-          token,
-          editingPayment.paymentId,
-          editStore,
-          editCompanyName,
-          amtNum,
-          editPaymentMethod,
-          editPaymentMethod === "cheque" ? editChequeDetails || null : null,
-          editPaymentMethod === "online" ? editUtrDetails || null : null,
-          editAdviceImage,
-        );
-      } catch (err) {
-        if (err instanceof Error && err.message.includes("is not a function")) {
-          throw new Error(
-            "Edit payment is not yet available. Please update the backend.",
-          );
-        }
-        throw err;
-      }
+      await actor!.editPayment(
+        token,
+        editingPayment.paymentId,
+        editStore,
+        editCompanyName,
+        amtNum,
+        editPaymentMethod,
+        editPaymentMethod === "cheque" ? editChequeDetails || null : null,
+        editPaymentMethod === "online" ? editUtrDetails || null : null,
+        editAdviceImage || "",
+      );
     },
     onSuccess: () => {
       toast.success("Payment updated");
       setEditingPayment(null);
       setEditAdviceImage("");
       if (editAdviceImageRef.current) editAdviceImageRef.current.value = "";
-      qc.invalidateQueries({ queryKey: ["all-payments"] });
+      queryClient.invalidateQueries({ queryKey: ["all-payments", token] });
     },
     onError: (err) => {
       toast.error(
@@ -758,26 +818,17 @@ function PaymentFeedTab() {
     mutationFn: async () => {
       if (!deletingPayment) throw new Error("No payment selected");
       if (!deletePaymentReason.trim()) throw new Error("Reason is required");
-      try {
-        return await actor!.deletePayment(
-          token,
-          deletingPayment.paymentId,
-          deletePaymentReason.trim(),
-        );
-      } catch (err) {
-        if (err instanceof Error && err.message.includes("is not a function")) {
-          throw new Error(
-            "Delete payment is not yet available. Please update the backend.",
-          );
-        }
-        throw err;
-      }
+      await actor!.softDeletePayment(
+        token,
+        deletingPayment.paymentId,
+        deletePaymentReason.trim(),
+      );
     },
     onSuccess: () => {
       toast.success("Payment deleted");
       setDeletingPayment(null);
       setDeletePaymentReason("");
-      qc.invalidateQueries({ queryKey: ["all-payments"] });
+      queryClient.invalidateQueries({ queryKey: ["all-payments", token] });
     },
     onError: (err) => {
       toast.error(
@@ -1087,7 +1138,7 @@ function PaymentFeedTab() {
                           <img
                             src={payment.paymentAdviceImage}
                             alt="Payment advice"
-                            className="w-8 h-8 rounded object-cover border border-border hover:opacity-80 transition-opacity"
+                            className="w-12 h-12 rounded object-cover border border-border hover:opacity-80 transition-opacity cursor-pointer"
                           />
                         </button>
                       </div>

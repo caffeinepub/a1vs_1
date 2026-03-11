@@ -19,9 +19,8 @@ import {
   User,
   Wallet,
 } from "lucide-react";
-import type { Order } from "../../backend.d";
+import type { Order, Payment } from "../../backend.d";
 import { useExtendedActor } from "../../hooks/useExtendedActor";
-import type { StatementEntry } from "../../types/appTypes";
 
 interface RiderAssignment {
   riderEmail: string;
@@ -210,31 +209,24 @@ export default function CustomerDashboard() {
     enabled: !!actor && !isFetching && !!token && !!storeNumber,
   });
 
-  const { data: statementEntries = [], isLoading: isStatementLoading } =
-    useQuery<StatementEntry[]>({
-      queryKey: ["my-statement", storeNumber, token],
-      queryFn: async () => {
-        try {
-          return await actor!.getMyStatement(
-            token,
-            0n,
-            BigInt(Date.now()) * 1_000_000n,
-          );
-        } catch {
-          // getMyStatement not available, return empty array
-          return [];
-        }
-      },
-      enabled: !!actor && !isFetching && !!token && !!storeNumber,
-    });
+  const { data: customerPayments = [] } = useQuery<Payment[]>({
+    queryKey: ["customer-payments", storeNumber, token],
+    queryFn: () => actor!.getPaymentsByStore(token, storeNumber),
+    enabled: !!actor && !isFetching && !!token && !!storeNumber,
+  });
 
   const sortedOrders = [...orders].sort(
     (a, b) => Number(b.timestamp) - Number(a.timestamp),
   );
   const recentOrders = sortedOrders.slice(0, 5);
 
-  const totalDebit = statementEntries.reduce((sum, e) => sum + e.debit, 0);
-  const totalCredit = statementEntries.reduce((sum, e) => sum + e.credit, 0);
+  // Balance Due = only delivered invoices as debit, minus all non-deleted payments
+  const totalDebit = orders
+    .filter((o) => o.status === "delivered")
+    .reduce((sum, o) => sum + o.totalAmount, 0);
+  const totalCredit = customerPayments
+    .filter((p) => !p.deleted)
+    .reduce((sum, p) => sum + p.amount, 0);
   const closingBalance = totalDebit - totalCredit;
 
   return (
@@ -309,7 +301,7 @@ export default function CustomerDashboard() {
                 Total Purchase
               </span>
             </div>
-            {isStatementLoading ? (
+            {isLoading ? (
               <Skeleton className="h-6 w-12" />
             ) : (
               <>
@@ -341,7 +333,7 @@ export default function CustomerDashboard() {
                 Balance Due
               </span>
             </div>
-            {isStatementLoading ? (
+            {isLoading ? (
               <Skeleton className="h-6 w-12" />
             ) : (
               <>
