@@ -23,19 +23,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-  useQuery as useReactQuery,
-} from "@tanstack/react-query";
-import {
+  AlertCircle,
   Briefcase,
   Calculator,
   KeyRound,
   Loader2,
   Pencil,
   Phone,
+  RefreshCw,
   ShieldCheck,
   Truck,
   UserCog,
@@ -77,15 +74,13 @@ function getRoleLabel(roleText: string) {
   return roles.find((r) => r.value === roleText)?.label ?? roleText;
 }
 
-// Rider profiles are now stored in the backend -- no localStorage needed
-
 export default function Users() {
   const { actor, isFetching } = useExtendedActor();
   const token = localStorage.getItem("a1vs_admin_token") ?? "";
   const qc = useQueryClient();
 
-  // Fetch rider profiles from backend (graceful degradation if function missing)
-  const { data: riderProfilesArr = [] } = useReactQuery<RiderProfile[]>({
+  // Fetch rider profiles from backend
+  const { data: riderProfilesArr = [] } = useQuery<RiderProfile[]>({
     queryKey: ["rider-profiles", token],
     queryFn: async () => {
       try {
@@ -105,7 +100,8 @@ export default function Users() {
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("storeManager");
   const [riderName, setRiderName] = useState("");
-  // For riders, phone IS the login ID (no separate email)
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
 
   const [changePwdUser, setChangePwdUser] = useState<SubUser | null>(null);
   const [newPwd, setNewPwd] = useState("");
@@ -115,99 +111,95 @@ export default function Users() {
   const [editName, setEditName] = useState("");
   const [editDesignation, setEditDesignation] = useState("");
   const [editPhone, setEditPhone] = useState("");
-  const [editRole, setEditRole] = useState("");
+  const [_editRole, setEditRole] = useState("");
   const [editNewPwd, setEditNewPwd] = useState("");
 
-  const { data: subUsers = [], isLoading } = useQuery<SubUser[]>({
+  // Fetch all sub-users -- errors are surfaced, not swallowed
+  const {
+    data: subUsers = [],
+    isLoading,
+    isError,
+    error: fetchError,
+    refetch: refetchUsers,
+  } = useQuery<SubUser[]>({
     queryKey: ["sub-users", token],
     queryFn: async () => {
-      try {
-        return await actor!.getAllSubUsers(token);
-      } catch {
-        return [];
-      }
+      const result = await actor!.getAllSubUsers(token);
+      return result;
     },
     enabled: !!actor && !isFetching && !!token,
+    retry: 1,
   });
 
   const createMutation = useMutation({
     mutationFn: async () => {
       if (role === "rider") {
-        // For riders: phone number is login ID, passed as email param
+        // Riders: phone number is the login ID
         const phoneAsEmail = email.trim();
+        // NOTE: No fallback to createSubUser -- that saves to wrong map
+        await actor!.createSubUserWithPassword(
+          token,
+          phoneAsEmail,
+          password,
+          role,
+          riderName.trim() || phoneAsEmail,
+          phoneAsEmail,
+        );
+        // Also save rider profile with name and phone
         try {
-          await actor!.createSubUserWithPassword(
+          await actor!.saveRiderProfile(
             token,
             phoneAsEmail,
-            password,
-            role,
             riderName.trim() || phoneAsEmail,
-            phoneAsEmail, // phone = login ID
-          );
-        } catch {
-          // Fall back to basic createSubUser if extended version not available
-          await actor!.createSubUser(
-            token,
             phoneAsEmail,
-            "manager" as import("../../backend.d").UserRole,
           );
-        }
-        try {
-          if (riderName.trim()) {
-            await actor!.saveRiderProfile(
-              token,
-              phoneAsEmail,
-              riderName.trim(),
-              phoneAsEmail, // phone = login ID
-            );
-          }
         } catch {
-          // Rider profile save not available, ignore
+          // Non-fatal: profile is also saved inside createSubUserWithPassword
         }
       } else {
-        try {
-          await actor!.createSubUserWithPassword(
-            token,
-            email,
-            password,
-            role,
-            email, // name defaults to email for non-rider
-            "", // phone empty for non-rider (set via edit later)
-          );
-        } catch {
-          // Fall back to basic createSubUser
-          await actor!.createSubUser(
-            token,
-            email,
-            "manager" as import("../../backend.d").UserRole,
-          );
-        }
+        // Non-rider: use email + name + phone
+        await actor!.createSubUserWithPassword(
+          token,
+          email.trim(),
+          password,
+          role,
+          name.trim() || email.trim(),
+          phone.trim(),
+        );
       }
     },
     onSuccess: () => {
-      toast.success(
-        `${role === "rider" ? "Rider" : "Sub-user"} ${email} created`,
-      );
+      const label = role === "rider" ? "Rider" : getRoleLabel(role);
+      toast.success(`${label} account created successfully`);
       setEmail("");
       setPassword("");
       setRole("storeManager");
       setRiderName("");
+      setName("");
+      setPhone("");
       qc.invalidateQueries({ queryKey: ["sub-users"] });
       qc.invalidateQueries({ queryKey: ["rider-profiles"] });
     },
     onError: (err: unknown) => {
-      const msg = err instanceof Error ? err.message : "Failed to create user";
-      toast.error(msg);
+      const raw = err instanceof Error ? err.message : String(err);
+      // Surface meaningful error messages
+      if (raw.includes("already exists")) {
+        toast.error("An account with this email/phone already exists.");
+      } else if (
+        raw.includes("session") ||
+        raw.includes("Invalid") ||
+        raw.includes("expired")
+      ) {
+        toast.error("Session expired. Please log out and log in again.");
+      } else {
+        toast.error(`Failed to create account: ${raw}`);
+      }
     },
   });
 
   const toggleMutation = useMutation({
     mutationFn: async (userEmail: string) => {
-      try {
-        await actor!.toggleSubUser(token, userEmail);
-      } catch {
-        throw new Error("Toggle user feature not yet available");
-      }
+      await actor!.toggleSubUser(token, userEmail);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["sub-users"] });
@@ -223,11 +215,7 @@ export default function Users() {
       userEmail,
       pwd,
     }: { userEmail: string; pwd: string }) => {
-      try {
-        await actor!.changeSubUserPassword(token, userEmail, pwd);
-      } catch {
-        throw new Error("Change password feature not yet available");
-      }
+      await actor!.changeSubUserPassword(token, userEmail, pwd);
     },
     onSuccess: () => {
       toast.success("Password updated");
@@ -241,54 +229,43 @@ export default function Users() {
     },
   });
 
-  // Edit mutation: update rider profile (name/phone) + optionally change password
+  // Edit mutation: save name/phone/designation to backend via riderProfile for all roles
   const editMutation = useMutation({
     mutationFn: async () => {
       if (!editUser) return;
       const userEmail = editUser.email;
 
-      // If role is rider, update rider profile with new name and phone
-      if (editUser.roleText === "rider" || editRole === "rider") {
-        try {
-          await actor!.saveRiderProfile(
-            token,
-            userEmail,
-            editName.trim() || userEmail,
-            editPhone.trim() || userEmail,
-          );
-        } catch {
-          // saveRiderProfile not available, skip silently
-        }
-      } else {
-        // For non-rider: save name/designation/phone to localStorage per-user
-        if (editName.trim()) {
+      // Save name/phone for all roles via saveRiderProfile (it stores for any user key)
+      try {
+        await actor!.saveRiderProfile(
+          token,
+          userEmail,
+          editName.trim() || userEmail,
+          editPhone.trim() || "",
+        );
+      } catch {
+        // Silently ignore if not available
+      }
+
+      // Also mirror to localStorage for non-rider display
+      if (editUser.roleText !== "rider") {
+        if (editName.trim())
           localStorage.setItem(`a1vs_user_name_${userEmail}`, editName.trim());
-        }
-        if (editDesignation.trim()) {
+        if (editDesignation.trim())
           localStorage.setItem(
             `a1vs_user_designation_${userEmail}`,
             editDesignation.trim(),
           );
-        }
-        if (editPhone.trim()) {
+        if (editPhone.trim())
           localStorage.setItem(
             `a1vs_user_phone_${userEmail}`,
             editPhone.trim(),
           );
-        }
       }
 
-      // If new password entered, update it
+      // Update password if provided
       if (editNewPwd.trim().length >= 6) {
-        try {
-          await actor!.changeSubUserPassword(
-            token,
-            userEmail,
-            editNewPwd.trim(),
-          );
-        } catch {
-          // changeSubUserPassword not available, skip silently
-        }
+        await actor!.changeSubUserPassword(token, userEmail, editNewPwd.trim());
       }
     },
     onSuccess: () => {
@@ -320,31 +297,41 @@ export default function Users() {
       setEditPhone(rp?.phone ?? user.email);
       setEditDesignation("Rider / Delivery");
     } else {
-      setEditName(localStorage.getItem(`a1vs_user_name_${user.email}`) ?? "");
+      const rp = riderProfilesMap[user.email];
+      setEditName(
+        rp?.name ?? localStorage.getItem(`a1vs_user_name_${user.email}`) ?? "",
+      );
       setEditDesignation(
         localStorage.getItem(`a1vs_user_designation_${user.email}`) ??
           getRoleLabel(user.roleText),
       );
-      setEditPhone(localStorage.getItem(`a1vs_user_phone_${user.email}`) ?? "");
+      setEditPhone(
+        rp?.phone ??
+          localStorage.getItem(`a1vs_user_phone_${user.email}`) ??
+          "",
+      );
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !password.trim()) {
-      toast.error(
-        role === "rider"
-          ? "Please enter phone number and password"
-          : "Please enter email and password",
-      );
-      return;
+    if (role === "rider") {
+      if (!email.trim() || !password.trim()) {
+        toast.error("Please enter phone number and password");
+        return;
+      }
+      if (!riderName.trim()) {
+        toast.error("Please enter a name for the rider");
+        return;
+      }
+    } else {
+      if (!email.trim() || !password.trim()) {
+        toast.error("Please enter email and password");
+        return;
+      }
     }
     if (password.length < 6) {
       toast.error("Password must be at least 6 characters");
-      return;
-    }
-    if (role === "rider" && !riderName.trim()) {
-      toast.error("Please enter a name for the rider");
       return;
     }
     if (!actor) {
@@ -379,45 +366,16 @@ export default function Users() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="user-email">
-                  {role === "rider"
-                    ? "Phone Number (Login ID)"
-                    : "Email Address"}
-                </Label>
-                <Input
-                  id="user-email"
-                  type={role === "rider" ? "tel" : "email"}
-                  placeholder={
-                    role === "rider" ? "+91 9999999999" : "manager@company.com"
-                  }
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={createMutation.isPending}
-                  data-ocid="admin.users.email.input"
-                />
-                {role === "rider" && (
-                  <p className="text-xs text-indigo-600">
-                    Phone number will be used as the rider's login ID
-                  </p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="user-password">Password</Label>
-                <Input
-                  id="user-password"
-                  type="password"
-                  placeholder="Min. 6 characters"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={createMutation.isPending}
-                  data-ocid="admin.users.password.input"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Role / Position</Label>
+                <Label htmlFor="user-role">Role / Position</Label>
                 <Select
                   value={role}
-                  onValueChange={setRole}
+                  onValueChange={(v) => {
+                    setRole(v);
+                    setEmail("");
+                    setName("");
+                    setPhone("");
+                    setRiderName("");
+                  }}
                   disabled={createMutation.isPending}
                 >
                   <SelectTrigger data-ocid="admin.users.role.select">
@@ -436,8 +394,7 @@ export default function Users() {
                 </p>
               </div>
 
-              {/* Rider-specific fields */}
-              {role === "rider" && (
+              {role === "rider" ? (
                 <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 space-y-3">
                   <p className="text-xs font-semibold text-indigo-700 flex items-center gap-1.5">
                     <Truck className="w-3.5 h-3.5" />
@@ -458,11 +415,96 @@ export default function Users() {
                       className="h-9 text-sm"
                     />
                   </div>
-                  <p className="text-xs text-indigo-500">
-                    Phone number entered above is used as both login ID and
-                    contact number.
-                  </p>
+                  <div className="space-y-2">
+                    <Label htmlFor="user-email" className="text-xs">
+                      Phone Number (Login ID){" "}
+                      <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="user-email"
+                      type="tel"
+                      placeholder="+91 9999999999"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled={createMutation.isPending}
+                      data-ocid="admin.users.email.input"
+                      className="h-9 text-sm"
+                    />
+                    <p className="text-xs text-indigo-500">
+                      Phone number is used as the rider's login ID.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="user-password" className="text-xs">
+                      Password <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="user-password"
+                      type="password"
+                      placeholder="Min. 6 characters"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      disabled={createMutation.isPending}
+                      data-ocid="admin.users.password.input"
+                      className="h-9 text-sm"
+                    />
+                  </div>
                 </div>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="user-fullname">Full Name</Label>
+                    <Input
+                      id="user-fullname"
+                      type="text"
+                      placeholder="Full name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      disabled={createMutation.isPending}
+                      data-ocid="admin.users.name.input"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="user-email">
+                      Email Address <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="user-email"
+                      type="email"
+                      placeholder="manager@company.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled={createMutation.isPending}
+                      data-ocid="admin.users.email.input"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="user-phone">Phone Number</Label>
+                    <Input
+                      id="user-phone"
+                      type="tel"
+                      placeholder="+91 9999999999"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      disabled={createMutation.isPending}
+                      data-ocid="admin.users.phone.input"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="user-password">
+                      Password <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="user-password"
+                      type="password"
+                      placeholder="Min. 6 characters"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      disabled={createMutation.isPending}
+                      data-ocid="admin.users.password.input"
+                    />
+                  </div>
+                </>
               )}
 
               <Button
@@ -526,53 +568,94 @@ export default function Users() {
           <CardTitle className="font-heading text-base flex items-center gap-2">
             <UserCog className="w-4 h-4 text-primary" />
             Team Accounts
-            {!isLoading && <Badge variant="secondary">{subUsers.length}</Badge>}
+            {!isLoading && !isError && (
+              <Badge variant="secondary">{subUsers.length}</Badge>
+            )}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="ml-auto h-7 text-xs gap-1"
+              onClick={() => refetchUsers()}
+              disabled={isLoading}
+              data-ocid="admin.users.refresh.button"
+            >
+              <RefreshCw
+                className={`w-3 h-3 ${isLoading ? "animate-spin" : ""}`}
+              />
+              Refresh
+            </Button>
           </CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="text-center py-8 text-muted-foreground text-sm">
-              Loading...
+            <div
+              className="text-center py-8 text-muted-foreground text-sm flex items-center justify-center gap-2"
+              data-ocid="admin.users.loading_state"
+            >
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Loading team accounts...
+            </div>
+          ) : isError ? (
+            <div
+              className="text-center py-8 space-y-3"
+              data-ocid="admin.users.error_state"
+            >
+              <AlertCircle className="w-8 h-8 text-destructive mx-auto" />
+              <p className="text-sm text-destructive font-medium">
+                Failed to load team accounts
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {fetchError instanceof Error
+                  ? fetchError.message
+                  : "Session may have expired. Please log out and log in again."}
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => refetchUsers()}
+                className="gap-1.5"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                Try Again
+              </Button>
             </div>
           ) : subUsers.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground text-sm">
+            <div
+              className="text-center py-8 text-muted-foreground text-sm"
+              data-ocid="admin.users.empty_state"
+            >
               No team accounts yet. Create one above.
             </div>
           ) : (
             <div className="space-y-2">
-              {subUsers.map((user) => {
-                const riderProfile =
-                  user.roleText === "rider"
-                    ? riderProfilesMap[user.email]
-                    : null;
-                const savedName =
-                  user.roleText !== "rider"
-                    ? localStorage.getItem(`a1vs_user_name_${user.email}`)
-                    : null;
-                const savedDesignation =
-                  user.roleText !== "rider"
-                    ? localStorage.getItem(
-                        `a1vs_user_designation_${user.email}`,
-                      )
-                    : null;
-                const savedPhone =
-                  user.roleText !== "rider"
-                    ? localStorage.getItem(`a1vs_user_phone_${user.email}`)
-                    : null;
+              {subUsers.map((user, idx) => {
+                const riderProfile = riderProfilesMap[user.email];
+                const displayName =
+                  riderProfile?.name ||
+                  localStorage.getItem(`a1vs_user_name_${user.email}`) ||
+                  user.email;
+                const displayDesignation =
+                  localStorage.getItem(`a1vs_user_designation_${user.email}`) ||
+                  getRoleLabel(user.roleText);
+                const displayPhone =
+                  riderProfile?.phone ||
+                  localStorage.getItem(`a1vs_user_phone_${user.email}`) ||
+                  "";
 
                 return (
                   <div
                     key={user.email}
-                    className={`flex items-center gap-3 border rounded-xl p-3 ${user.roleText === "rider" ? "border-indigo-100 bg-indigo-50/30" : "border-border"}`}
+                    data-ocid={`admin.users.item.${idx + 1}`}
+                    className={`flex items-center gap-3 border rounded-xl p-3 ${
+                      user.roleText === "rider"
+                        ? "border-indigo-100 bg-indigo-50/30"
+                        : "border-border"
+                    }`}
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <p className="font-medium text-sm truncate">
-                          {user.roleText === "rider"
-                            ? riderProfile?.name
-                              ? `${riderProfile.name}`
-                              : user.email
-                            : (savedName ?? user.email)}
+                          {displayName}
                         </p>
                         {user.roleText === "rider" && (
                           <Badge className="bg-indigo-100 text-indigo-700 border-0 text-[10px] px-1.5">
@@ -582,26 +665,15 @@ export default function Users() {
                         )}
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {savedDesignation ?? getRoleLabel(user.roleText)}
+                        {displayDesignation}
                       </p>
-                      {/* Show login ID / contact */}
-                      {user.roleText === "rider" ? (
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <a
-                            href={`tel:${user.email}`}
-                            className="text-xs text-indigo-500 flex items-center gap-0.5"
-                          >
-                            <Phone className="w-2.5 h-2.5" />
-                            {user.email}
-                          </a>
-                        </div>
-                      ) : savedPhone ? (
+                      {displayPhone ? (
                         <a
-                          href={`tel:${savedPhone}`}
+                          href={`tel:${displayPhone}`}
                           className="text-xs text-muted-foreground flex items-center gap-0.5 mt-0.5"
                         >
                           <Phone className="w-2.5 h-2.5" />
-                          {savedPhone}
+                          {displayPhone}
                         </a>
                       ) : (
                         <p className="text-xs text-muted-foreground mt-0.5">
@@ -623,13 +695,12 @@ export default function Users() {
                       onCheckedChange={() => toggleMutation.mutate(user.email)}
                       disabled={toggleMutation.isPending}
                     />
-                    {/* Edit button */}
                     <Button
                       size="sm"
                       variant="ghost"
                       className="h-8 text-xs gap-1.5 text-primary hover:bg-primary/10"
                       onClick={() => openEditUser(user)}
-                      data-ocid="admin.users.edit_button"
+                      data-ocid={`admin.users.edit_button.${idx + 1}`}
                     >
                       <Pencil className="w-3 h-3" />
                       Edit
@@ -642,7 +713,7 @@ export default function Users() {
                         setChangePwdUser(user);
                         setNewPwd("");
                       }}
-                      data-ocid="admin.users.password.button"
+                      data-ocid={`admin.users.password.button.${idx + 1}`}
                     >
                       <KeyRound className="w-3 h-3" />
                       Password
@@ -727,7 +798,6 @@ export default function Users() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {/* Email (read-only) */}
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">
                 Login ID{" "}
@@ -748,7 +818,6 @@ export default function Users() {
               </div>
             </div>
 
-            {/* Name */}
             <div className="space-y-1.5">
               <Label htmlFor="edit-name">
                 {editUser?.roleText === "rider" ? "Rider Name" : "Full Name"}
@@ -764,14 +833,13 @@ export default function Users() {
               />
             </div>
 
-            {/* Designation (non-rider only) */}
             {editUser?.roleText !== "rider" && (
               <div className="space-y-1.5">
                 <Label htmlFor="edit-designation">Designation / Position</Label>
                 <Input
                   id="edit-designation"
                   type="text"
-                  placeholder="e.g. Store Manager"
+                  placeholder="e.g. Account Manager"
                   value={editDesignation}
                   onChange={(e) => setEditDesignation(e.target.value)}
                   disabled={editMutation.isPending}
@@ -780,7 +848,6 @@ export default function Users() {
               </div>
             )}
 
-            {/* Phone */}
             <div className="space-y-1.5">
               <Label htmlFor="edit-phone">
                 {editUser?.roleText === "rider"
@@ -798,7 +865,6 @@ export default function Users() {
               />
             </div>
 
-            {/* Role (read-only display) */}
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Role</Label>
               <div className="px-3 py-2 bg-muted/40 rounded-lg border border-border">
@@ -808,7 +874,6 @@ export default function Users() {
               </div>
             </div>
 
-            {/* Optional new password */}
             <div className="space-y-1.5">
               <Label htmlFor="edit-new-pwd">
                 New Password{" "}
