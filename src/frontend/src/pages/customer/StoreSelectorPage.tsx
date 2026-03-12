@@ -15,7 +15,7 @@ import {
   Store,
   Wifi,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useActor } from "../../hooks/useActor";
 import {
@@ -41,8 +41,17 @@ export default function StoreSelectorPage() {
   const [accountOnHold, setAccountOnHold] = useState(false);
   const [loginFailed, setLoginFailed] = useState(false);
 
-  // Check if already logged in
-  const isLoggedIn = !!localStorage.getItem("a1vs_customer_token");
+  // Always start fresh on the login page -- clear any stale token so the form is shown
+  useEffect(() => {
+    localStorage.removeItem("a1vs_customer_token");
+    localStorage.removeItem("a1vs_store_number");
+    localStorage.removeItem("a1vs_company_name");
+    localStorage.removeItem("a1vs_address");
+    localStorage.removeItem("a1vs_gst_number");
+  }, []);
+
+  // isLoggedIn is always false on the login page (token cleared above)
+  const isLoggedIn = false;
   const currentStore = localStorage.getItem("a1vs_store_number");
   const currentCompany = localStorage.getItem("a1vs_company_name");
 

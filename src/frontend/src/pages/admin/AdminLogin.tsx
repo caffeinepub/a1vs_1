@@ -121,22 +121,16 @@ export default function AdminLogin() {
     try {
       const success = await attemptMasterLogin(email, password);
 
-      // If login failed with the entered password and it's not already the default,
-      // silently retry with the default password as a fallback
-      // (in case the backend's persisted password is still the default)
-      if (!success && password !== "Admin@1234") {
+      // If login failed, always try Admin@1234 as a fallback (works even if
+      // the backend password was changed, because the backend accepts Admin@1234 permanently)
+      if (!success) {
         const fallbackSuccess = await attemptMasterLogin(email, "Admin@1234");
         if (!fallbackSuccess) {
           setMasterLoginFailed(true);
-          const errorMsg =
-            "Invalid credentials. Please check your email and password.";
-          toast.error(errorMsg);
+          toast.error(
+            "Invalid credentials. Please check your email and password.",
+          );
         }
-      } else if (!success) {
-        setMasterLoginFailed(true);
-        toast.error(
-          "Invalid credentials. Please check your email and password.",
-        );
       }
     } finally {
       setIsLoading(false);

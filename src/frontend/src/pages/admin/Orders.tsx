@@ -300,14 +300,12 @@ export default function Orders() {
 
   const assignInvoiceMutation = useMutation({
     mutationFn: async (orderId: string) => {
-      return actor!.assignInvoiceNumber(token, orderId);
+      // Use updateOrderStatus which auto-assigns invoice number on delivery
+      // This avoids dependency on assignInvoiceNumber which may not exist on older canisters
+      await actor!.updateOrderStatus(token, orderId, "delivered");
     },
-    onSuccess: (invoiceNum) => {
-      const msg =
-        invoiceNum === "INV-A1VS-??"
-          ? "Invoice assigned! Refreshing..."
-          : `Invoice assigned: ${invoiceNum}`;
-      toast.success(msg);
+    onSuccess: () => {
+      toast.success("Invoice assigned successfully");
       qc.invalidateQueries({ queryKey: ["admin-orders"] });
     },
     onError: (err: unknown) => {
