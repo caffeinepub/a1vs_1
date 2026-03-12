@@ -64,15 +64,6 @@ interface RiderAssignmentLocal {
   riderPhone: string;
 }
 
-// Helper to normalize ICP optional type [] | [T] to T | undefined
-function optText(
-  v: [] | [string] | string | undefined | null,
-): string | undefined {
-  if (!v) return undefined;
-  if (Array.isArray(v)) return v.length > 0 ? (v[0] as string) : undefined;
-  return v as string;
-}
-
 function formatDate(timestamp: bigint) {
   const ms = Number(timestamp) / 1_000_000;
   return new Date(ms).toLocaleString("en-IN", {
@@ -146,24 +137,7 @@ export default function Orders() {
 
   const { data: orders = [], isLoading } = useQuery<Order[]>({
     queryKey: ["admin-orders", token],
-    queryFn: async () => {
-      const raw = await actor!.getAllOrders(token);
-      return raw.map((o: Order) => ({
-        ...o,
-        invoiceNumber: optText(
-          o.invoiceNumber as unknown as [] | [string] | string | undefined,
-        ),
-        deleteReason: optText(
-          o.deleteReason as unknown as [] | [string] | string | undefined,
-        ),
-        deliverySignature: optText(
-          o.deliverySignature as unknown as [] | [string] | string | undefined,
-        ),
-        gstNumber: optText(
-          o.gstNumber as unknown as [] | [string] | string | undefined,
-        ),
-      }));
-    },
+    queryFn: () => actor!.getAllOrders(token),
     enabled: !!actor && !isFetching && !!token,
   });
 
@@ -303,11 +277,7 @@ export default function Orders() {
       return actor!.assignInvoiceNumber(token, orderId);
     },
     onSuccess: (invoiceNum) => {
-      const msg =
-        invoiceNum === "INV-A1VS-??"
-          ? "Invoice assigned! Refreshing..."
-          : `Invoice assigned: ${invoiceNum}`;
-      toast.success(msg);
+      toast.success(`Invoice assigned: ${invoiceNum}`);
       qc.invalidateQueries({ queryKey: ["admin-orders"] });
     },
     onError: (err: unknown) => {
@@ -980,7 +950,7 @@ export default function Orders() {
         onOpenChange={(open) => !open && setAssignRiderOrder(null)}
       >
         <DialogContent
-          className="max-w-sm max-h-[90vh] overflow-y-auto"
+          className="max-w-sm"
           data-ocid="admin.assign_rider.dialog"
         >
           <DialogHeader>
@@ -1046,7 +1016,7 @@ export default function Orders() {
               </div>
             )}
           </div>
-          <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <DialogFooter className="gap-2">
             <Button
               variant="outline"
               onClick={() => setAssignRiderOrder(null)}
@@ -1132,7 +1102,6 @@ export default function Orders() {
               variant="ghost"
               className="gap-2"
               disabled={isAssigning}
-              data-ocid="admin.assign_rider.no_rider_button"
               onClick={async () => {
                 if (!assignRiderOrder) return;
                 setIsAssigning(true);

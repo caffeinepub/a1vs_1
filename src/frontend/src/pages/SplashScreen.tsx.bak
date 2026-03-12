@@ -48,11 +48,9 @@ export default function SplashScreen() {
     navigate({ to: "/admin/login" });
   };
 
-  /* RIDER PORTAL HIDDEN - can be re-enabled later
   const handleRiderLogin = () => {
     navigate({ to: "/admin/login" });
   };
-  */
 
   return (
     <div
@@ -223,8 +221,7 @@ export default function SplashScreen() {
               Admin Portal
             </button>
 
-            {/* RIDER PORTAL HIDDEN - can be re-enabled later */}
-            {/* Rider Login link
+            {/* Rider Login link */}
             <div
               className="animate-fade-in-up pt-2"
               style={{ animationDelay: "0.2s", animationFillMode: "forwards" }}
@@ -238,7 +235,6 @@ export default function SplashScreen() {
                 🚚 Rider Login
               </button>
             </div>
-            */}
           </div>
         )}
 

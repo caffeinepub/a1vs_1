@@ -1,6 +1,6 @@
 import Map "mo:core/Map";
 import Nat "mo:core/Nat";
-import Array "mo:core/Array";
+
 import Time "mo:core/Time";
 import Text "mo:core/Text";
 import Iter "mo:core/Iter";
@@ -173,6 +173,7 @@ actor {
   stable var stableProductIdCounter : Nat = 1;
   stable var stableOrderIdCounter : Nat = 1;
   stable var stablePaymentIdCounter : Nat = 1;
+  stable var stableInvoiceCounter : Nat = 1;
   stable var stablePasswordHash : Text = "Admin@1234";
   stable var stableWebhookUrl : Text = "";
   stable var stableCompanyProfile : CompanyProfile = {
@@ -200,6 +201,7 @@ actor {
   var productIdCounter = stableProductIdCounter;
   var orderIdCounter = stableOrderIdCounter;
   var paymentIdCounter = stablePaymentIdCounter;
+  var invoiceCounter = stableInvoiceCounter;
   var passwordHash = stablePasswordHash;
   var webhookUrl = stableWebhookUrl;
 
@@ -219,6 +221,7 @@ actor {
     stableProductIdCounter := productIdCounter;
     stableOrderIdCounter := orderIdCounter;
     stablePaymentIdCounter := paymentIdCounter;
+    stableInvoiceCounter := invoiceCounter;
     stablePasswordHash := passwordHash;
     stableWebhookUrl := webhookUrl;
     stableCompanyProfile := companyProfile;
@@ -807,6 +810,14 @@ actor {
     switch (orders.get(orderId)) {
       case (null) { Runtime.trap("Order not found") };
       case (?order) {
+        // Auto-assign invoice number when order is delivered
+        let newInvoiceNumber : ?Text = if (status == "delivered" and order.invoiceNumber == null) {
+          let padded = if (invoiceCounter < 10) { "0" # invoiceCounter.toText() }
+                       else { invoiceCounter.toText() };
+          invoiceCounter += 1;
+          stableInvoiceCounter := invoiceCounter;
+          ?("INV-A1VS-" # padded)
+        } else { order.invoiceNumber };
         let updatedOrder : Order = {
           orderId = order.orderId;
           storeNumber = order.storeNumber;
@@ -816,7 +827,7 @@ actor {
           timestamp = order.timestamp;
           status;
           totalAmount = order.totalAmount;
-          invoiceNumber = order.invoiceNumber;
+          invoiceNumber = newInvoiceNumber;
           paymentMethod = order.paymentMethod;
           poNumber = order.poNumber;
           gstNumber = order.gstNumber;
@@ -827,6 +838,47 @@ actor {
           deliveryEndTime = if (status == "delivered") { ?Time.now() } else { order.deliveryEndTime };
         };
         orders.add(orderId, updatedOrder);
+      };
+    };
+  };
+
+  // Assign invoice number to a delivered order (if not already assigned)
+  public shared ({ caller }) func assignInvoiceNumber(token : Text, orderId : Text) : async Text {
+    validateSession(token, null);
+    switch (orders.get(orderId)) {
+      case (null) { Runtime.trap("Order not found") };
+      case (?order) {
+        switch (order.invoiceNumber) {
+          case (?existing) { existing };
+          case (null) {
+            let padded = if (invoiceCounter < 10) { "0" # invoiceCounter.toText() }
+                         else { invoiceCounter.toText() };
+            invoiceCounter += 1;
+            stableInvoiceCounter := invoiceCounter;
+            let invNum = "INV-A1VS-" # padded;
+            let updatedOrder : Order = {
+              orderId = order.orderId;
+              storeNumber = order.storeNumber;
+              companyName = order.companyName;
+              address = order.address;
+              items = order.items;
+              timestamp = order.timestamp;
+              status = order.status;
+              totalAmount = order.totalAmount;
+              invoiceNumber = ?invNum;
+              paymentMethod = order.paymentMethod;
+              poNumber = order.poNumber;
+              gstNumber = order.gstNumber;
+              deleteReason = order.deleteReason;
+              deliverySignature = order.deliverySignature;
+              deliverySignedAt = order.deliverySignedAt;
+              deliveryStartTime = order.deliveryStartTime;
+              deliveryEndTime = order.deliveryEndTime;
+            };
+            orders.add(orderId, updatedOrder);
+            invNum
+          };
+        };
       };
     };
   };

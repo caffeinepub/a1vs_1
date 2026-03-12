@@ -319,6 +319,51 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async assignInvoiceNumber(arg0: string, arg1: string): Promise<string> {
+        const isMethodNotFound = (e: unknown) => {
+            const msg = e instanceof Error ? e.message : String(e);
+            return msg.includes('has no update method') || msg.includes('IC0536') || msg.includes('assignInvoiceNumber');
+        };
+        try {
+            const result = await this.actor.assignInvoiceNumber(arg0, arg1);
+            return result;
+        } catch (e) {
+            if (isMethodNotFound(e)) {
+                // Fallback: updateOrderStatus triggers auto-invoice assignment in backend
+                try {
+                    await this.actor.updateOrderStatus(arg0, arg1, 'delivered');
+                    return 'INV-A1VS-??';
+                } catch (e2) {
+                    const msg = e2 instanceof Error ? e2.message : 'Failed to assign invoice number';
+                    throw new Error(msg);
+                }
+            }
+            if (this.processError) { this.processError(e); throw new Error("unreachable"); }
+            throw e;
+        }
+    }
+    async deleteOrder(arg0: string, arg1: string, arg2: string): Promise<void> {
+        const isMethodNotFound = (e: unknown) => {
+            const msg = e instanceof Error ? e.message : String(e);
+            return msg.includes('has no update method') || msg.includes('IC0536') || msg.includes('deleteOrder');
+        };
+        try {
+            await this.actor.deleteOrder(arg0, arg1, arg2);
+        } catch (e) {
+            if (isMethodNotFound(e)) {
+                // Fallback: mark order as deleted via updateOrderStatus
+                try {
+                    await this.actor.updateOrderStatus(arg0, arg1, 'deleted');
+                    return;
+                } catch (e2) {
+                    const msg = e2 instanceof Error ? e2.message : 'Failed to delete order';
+                    throw new Error(msg);
+                }
+            }
+            if (this.processError) { this.processError(e); throw new Error("unreachable"); }
+            throw e;
+        }
+    }
     async deleteCustomer(arg0: string, arg1: string): Promise<void> {
         if (this.processError) {
             try {

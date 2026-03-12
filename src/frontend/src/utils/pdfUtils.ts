@@ -306,9 +306,16 @@ function drawTotalAndSignatures(
     const currentPage = doc.internal.getCurrentPageInfo().pageNumber;
     drawPageHeader(
       doc,
-      order.status === "delivered" && !!order.invoiceNumber,
-      order.invoiceNumber
-        ? `Invoice #: ${order.invoiceNumber}`
+      order.status === "delivered" &&
+        !!(Array.isArray(order.invoiceNumber)
+          ? order.invoiceNumber[0]
+          : order.invoiceNumber),
+      (
+        Array.isArray(order.invoiceNumber)
+          ? order.invoiceNumber[0]
+          : order.invoiceNumber
+      )
+        ? `Invoice #: ${Array.isArray(order.invoiceNumber) ? order.invoiceNumber[0] : order.invoiceNumber}`
         : `PO #: ${order.poNumber}`,
       formatDate(order.timestamp),
       companyProfile,
@@ -441,9 +448,12 @@ function buildInvoicePDF(
   const pageW = doc.internal.pageSize.getWidth();
   const margin = 14;
 
-  const isInvoice = order.status === "delivered" && !!order.invoiceNumber;
+  const rawInvNum = Array.isArray(order.invoiceNumber)
+    ? order.invoiceNumber[0]
+    : order.invoiceNumber;
+  const isInvoice = order.status === "delivered" && !!rawInvNum;
   const docNumber = isInvoice
-    ? `Invoice #: ${order.invoiceNumber}`
+    ? `Invoice #: ${rawInvNum}`
     : `PO #: ${order.poNumber}`;
   const dateStr = formatDate(order.timestamp);
 
@@ -812,9 +822,12 @@ export function generateInvoicePDF(
   companyProfile?: CompanyProfilePDF,
 ): void {
   const doc = buildInvoicePDF(order, companyProfile);
-  const isInvoice = order.status === "delivered" && !!order.invoiceNumber;
+  const rawInvNum = Array.isArray(order.invoiceNumber)
+    ? order.invoiceNumber[0]
+    : order.invoiceNumber;
+  const isInvoice = order.status === "delivered" && !!rawInvNum;
   const fileName = isInvoice
-    ? `Invoice_${order.invoiceNumber}_${order.storeNumber}.pdf`
+    ? `Invoice_${rawInvNum}_${order.storeNumber}.pdf`
     : `PO_${order.poNumber}_${order.storeNumber}.pdf`;
   doc.save(fileName);
 }

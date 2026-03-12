@@ -99,6 +99,7 @@ export interface ExtendedBackend extends backendInterface {
   getAllCustomerOrders(token: string): Promise<Array<Order>>;
   getAllCustomerPayments(token: string): Promise<Array<Payment>>;
   deleteOrder(token: string, orderId: string, reason: string): Promise<void>;
+  assignInvoiceNumber(token: string, orderId: string): Promise<string>;
   markOrderDeliveredWithSignature(
     token: string,
     orderId: string,

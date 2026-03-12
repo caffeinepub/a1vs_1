@@ -91,6 +91,23 @@ export interface ProductInput {
   'unit' : string,
   'imageBase64' : [] | [string],
 }
+export interface SubUser {
+  'email' : string,
+  'password' : string,
+  'roleText' : string,
+  'active' : boolean,
+}
+export interface RiderProfile {
+  'email' : string,
+  'name' : string,
+  'phone' : string,
+}
+export interface RiderAssignment {
+  'orderId' : string,
+  'riderEmail' : string,
+  'riderName' : string,
+  'riderPhone' : string,
+}
 export type Time = bigint;
 export type UserRole = { 'manager' : null } |
   { 'admin' : null } |
@@ -114,8 +131,17 @@ export interface _SERVICE {
   'adminLogin' : ActorMethod<[string, string], string>,
   'changeAdminPassword' : ActorMethod<[string, string], undefined>,
   'createSubUser' : ActorMethod<[string, string, UserRole], undefined>,
+  'createSubUserWithPassword' : ActorMethod<[string, string, string, string, string, string], undefined>,
+  'getAllSubUsers' : ActorMethod<[string], Array<SubUser>>,
+  'deleteSubUser' : ActorMethod<[string, string], undefined>,
+  'toggleSubUser' : ActorMethod<[string, string], undefined>,
+  'changeSubUserPassword' : ActorMethod<[string, string, string], undefined>,
+  'saveRiderProfile' : ActorMethod<[string, string, string, string], undefined>,
+  'getAllRiderProfiles' : ActorMethod<[string], Array<RiderProfile>>,
   'customerLogin' : ActorMethod<[string, string], string>,
+  'assignInvoiceNumber' : ActorMethod<[string, string], string>,
   'deleteCustomer' : ActorMethod<[string, string], undefined>,
+  'deleteOrder' : ActorMethod<[string, string, string], undefined>,
   'editOrderItems' : ActorMethod<[string, string, Array<OrderItem>], undefined>,
   'editPayment' : ActorMethod<
     [

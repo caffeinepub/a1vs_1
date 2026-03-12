@@ -45,6 +45,15 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+// Helper to normalize ICP optional type [] | [T] to T | undefined
+function optText(
+  v: [] | [string] | string | undefined | null,
+): string | undefined {
+  if (!v) return undefined;
+  if (Array.isArray(v)) return v.length > 0 ? (v[0] as string) : undefined;
+  return v as string;
+}
+
 export default function CustomerOrders() {
   const navigate = useNavigate();
   const { actor, isFetching } = useExtendedActor();
@@ -55,7 +64,24 @@ export default function CustomerOrders() {
 
   const { data: orders = [], isLoading } = useQuery<Order[]>({
     queryKey: ["customer-orders", storeNumber, token],
-    queryFn: () => actor!.getOrdersByStore(token, storeNumber),
+    queryFn: async () => {
+      const raw = await actor!.getOrdersByStore(token, storeNumber);
+      return raw.map((o: Order) => ({
+        ...o,
+        invoiceNumber: optText(
+          o.invoiceNumber as unknown as [] | [string] | string | undefined,
+        ),
+        deleteReason: optText(
+          o.deleteReason as unknown as [] | [string] | string | undefined,
+        ),
+        deliverySignature: optText(
+          o.deliverySignature as unknown as [] | [string] | string | undefined,
+        ),
+        gstNumber: optText(
+          o.gstNumber as unknown as [] | [string] | string | undefined,
+        ),
+      }));
+    },
     enabled: !!actor && !isFetching && !!token && !!storeNumber,
   });
 

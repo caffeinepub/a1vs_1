@@ -116,7 +116,9 @@ export interface backendInterface {
     createSubUser(token: string, email: string, role: UserRole): Promise<void>;
     createSubUserWithPassword(token: string, email: string, password: string, roleText: string, name: string, phone: string): Promise<void>;
     customerLogin(storeNumber: string, password: string): Promise<string>;
+    assignInvoiceNumber(token: string, orderId: string): Promise<string>;
     deleteCustomer(token: string, storeNumber: string): Promise<void>;
+    deleteOrder(token: string, orderId: string, reason: string): Promise<void>;
     deleteSubUser(token: string, email: string): Promise<void>;
     editOrderItems(token: string, orderId: string, newItems: Array<OrderItem>): Promise<void>;
     editPayment(token: string, paymentId: string, storeNumber: string, companyName: string, amount: number, paymentMethod: string, chequeDetails: string | null, utrDetails: string | null, paymentAdviceImage: string): Promise<void>;
