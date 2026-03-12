@@ -3,11 +3,14 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { FileText, ShoppingBag } from "lucide-react";
+import { FileText, Printer, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
 import type { CompanyProfile, Order } from "../../backend.d";
 import { useExtendedActor } from "../../hooks/useExtendedActor";
-import { generateInvoicePDF } from "../../utils/pdfUtils";
+import {
+  generateInvoicePDF,
+  generateInvoicePDFAndPrint,
+} from "../../utils/pdfUtils";
 
 function formatDate(timestamp: bigint) {
   const ms = Number(timestamp) / 1_000_000;
@@ -160,7 +163,7 @@ export default function CustomerOrders() {
                       variant="outline"
                       className="font-mono text-xs border-green-200 text-green-700"
                     >
-                      PO# {order.poNumber}
+                      INV# {order.poNumber}
                     </Badge>
                   )}
                   <StatusBadge status={order.status} />
@@ -214,10 +217,29 @@ export default function CustomerOrders() {
                   }}
                 >
                   <FileText className="w-3 h-3" />
-                  {order.status === "delivered" && order.invoiceNumber
-                    ? "Invoice PDF"
-                    : "PO PDF"}
+                  Invoice PDF
                 </Button>
+                {order.status === "delivered" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5 h-8 text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
+                    onClick={() => {
+                      try {
+                        generateInvoicePDFAndPrint(
+                          order,
+                          companyProfile ?? undefined,
+                        );
+                      } catch {
+                        toast.error("Failed to print invoice");
+                      }
+                    }}
+                    data-ocid="orders.print.button"
+                  >
+                    <Printer className="w-3 h-3" />
+                    Print Invoice
+                  </Button>
+                )}
               </div>
             </div>
           ))}

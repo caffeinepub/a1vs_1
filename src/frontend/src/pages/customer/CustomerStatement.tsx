@@ -123,10 +123,10 @@ export default function CustomerStatement() {
           entryType: "invoice",
           referenceNumber: o.invoiceNumber
             ? `INV#${o.invoiceNumber}`
-            : `PO#${o.poNumber ?? o.orderId}`,
+            : `INV#${o.poNumber ?? o.orderId}`,
           description: o.invoiceNumber
             ? `Invoice #${o.invoiceNumber}`
-            : `PO #${o.poNumber ?? o.orderId}`,
+            : `INV #${o.poNumber ?? o.orderId}`,
           debit: o.totalAmount,
           credit: 0,
           storeNumber: o.storeNumber,

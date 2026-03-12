@@ -472,7 +472,7 @@ function ActiveOrderCard({
               >
                 {order.invoiceNumber
                   ? `INV# ${order.invoiceNumber}`
-                  : `PO# ${order.poNumber}`}
+                  : `INV# ${order.poNumber}`}
               </Badge>
               <Badge
                 className={cn(
@@ -1011,7 +1011,7 @@ export default function RiderDashboard() {
                             <p className="text-[10px] text-muted-foreground font-mono">
                               {order.invoiceNumber
                                 ? `INV# ${order.invoiceNumber}`
-                                : `PO# ${order.poNumber}`}
+                                : `INV# ${order.poNumber}`}
                             </p>
                             <p className="text-[10px] text-muted-foreground">
                               {order.items.length} item

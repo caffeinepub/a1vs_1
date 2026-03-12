@@ -144,7 +144,7 @@ export default function AdminProfile() {
             Company Details
           </CardTitle>
           <CardDescription>
-            These details will appear on all invoices, POs, statements, and PDF
+            These details will appear on all invoices, statements, and PDF
             downloads.
           </CardDescription>
         </CardHeader>
@@ -204,8 +204,7 @@ export default function AdminProfile() {
                     </Button>
                     <p className="text-xs text-muted-foreground">
                       Accepted formats: PNG, JPG, JPEG, GIF, WEBP, SVG. The logo
-                      will be used in invoices, POs, statements, and payment
-                      PDFs.
+                      will be used in invoices, statements, and payment PDFs.
                     </p>
                     {logoBase64 && (
                       <button

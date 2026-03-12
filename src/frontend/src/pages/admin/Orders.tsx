@@ -534,7 +534,7 @@ export default function Orders() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-heading text-2xl font-bold">Purchase Orders</h1>
+        <h1 className="font-heading text-2xl font-bold">Invoices</h1>
         <p className="text-muted-foreground text-sm mt-1">
           Manage delivery workflow — Accept → On the Way → Delivered
         </p>
@@ -545,7 +545,7 @@ export default function Orders() {
           <div className="flex items-center justify-between flex-wrap gap-3">
             <CardTitle className="font-heading text-base flex items-center gap-2">
               <ShoppingCart className="w-4 h-4 text-primary" />
-              All Purchase Orders
+              All Invoices
               {!isLoading && (
                 <Badge variant="secondary" className="ml-2">
                   {orders.length}
@@ -569,7 +569,7 @@ export default function Orders() {
               <div className="relative w-52">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search PO, store, company..."
+                  placeholder="Search invoice, store, company..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="pl-9 h-9 text-xs"
@@ -607,7 +607,7 @@ export default function Orders() {
                       >
                         {order.invoiceNumber
                           ? `INV# ${order.invoiceNumber}`
-                          : `PO# ${order.poNumber}`}
+                          : `INV# ${order.poNumber}`}
                       </Badge>
                       <StatusBadge status={order.status} />
                       {order.status !== "deleted" && (
@@ -707,7 +707,7 @@ export default function Orders() {
                           onClick={() => openEditModal(order)}
                         >
                           <Edit2 className="w-3 h-3" />
-                          Edit PO
+                          Edit Invoice
                         </Button>
                       )}
                     {order.status !== "deleted" && (
@@ -734,9 +734,7 @@ export default function Orders() {
                         }
                       >
                         <FileText className="w-3 h-3" />
-                        {order.status === "delivered" && order.invoiceNumber
-                          ? "Invoice PDF"
-                          : "PO PDF"}
+                        Invoice PDF
                       </Button>
                     )}
                     {order.status === "delivered" && !order.invoiceNumber && (
@@ -848,7 +846,8 @@ export default function Orders() {
         <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="font-heading">
-              Edit PO# {editingOrder?.poNumber}
+              Edit Invoice#{" "}
+              {editingOrder?.invoiceNumber ?? editingOrder?.poNumber}
             </DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto space-y-4">
@@ -991,7 +990,9 @@ export default function Orders() {
             <div className="bg-indigo-50 rounded-lg px-3 py-2">
               <p className="text-xs text-indigo-700">
                 <span className="font-semibold">
-                  PO# {assignRiderOrder?.poNumber}
+                  INV#{" "}
+                  {assignRiderOrder?.invoiceNumber ??
+                    assignRiderOrder?.poNumber}
                 </span>
                 {" · "}
                 {assignRiderOrder?.companyName}

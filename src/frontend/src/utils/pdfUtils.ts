@@ -304,19 +304,13 @@ function drawTotalAndSignatures(
   if (yPos + neededHeight > pageH - 25) {
     doc.addPage();
     const currentPage = doc.internal.getCurrentPageInfo().pageNumber;
+    const contInvNum = Array.isArray(order.invoiceNumber)
+      ? order.invoiceNumber[0]
+      : order.invoiceNumber;
     drawPageHeader(
       doc,
-      order.status === "delivered" &&
-        !!(Array.isArray(order.invoiceNumber)
-          ? order.invoiceNumber[0]
-          : order.invoiceNumber),
-      (
-        Array.isArray(order.invoiceNumber)
-          ? order.invoiceNumber[0]
-          : order.invoiceNumber
-      )
-        ? `Invoice #: ${Array.isArray(order.invoiceNumber) ? order.invoiceNumber[0] : order.invoiceNumber}`
-        : `PO #: ${order.poNumber}`,
+      true,
+      contInvNum ? `Invoice #: ${contInvNum}` : `Invoice #: ${order.poNumber}`,
       formatDate(order.timestamp),
       companyProfile,
     );
@@ -451,10 +445,10 @@ function buildInvoicePDF(
   const rawInvNum = Array.isArray(order.invoiceNumber)
     ? order.invoiceNumber[0]
     : order.invoiceNumber;
-  const isInvoice = order.status === "delivered" && !!rawInvNum;
-  const docNumber = isInvoice
+  const isInvoice = true;
+  const docNumber = rawInvNum
     ? `Invoice #: ${rawInvNum}`
-    : `PO #: ${order.poNumber}`;
+    : `Invoice #: ${order.poNumber}`;
   const dateStr = formatDate(order.timestamp);
 
   // Page 1 header
@@ -510,8 +504,6 @@ function buildInvoicePDF(
       if (data.pageNumber > 1) {
         // Re-draw header on continuation pages
         drawPageHeader(doc, isInvoice, docNumber, dateStr, companyProfile);
-        // Set the table start Y after header on new pages
-        // (autotable handles this automatically via margin.top if we could set it, but we do it via addPageContent instead)
       }
       // Draw footer on every page
       drawPageFooter(doc, data.pageNumber, companyProfile);
@@ -825,10 +817,9 @@ export function generateInvoicePDF(
   const rawInvNum = Array.isArray(order.invoiceNumber)
     ? order.invoiceNumber[0]
     : order.invoiceNumber;
-  const isInvoice = order.status === "delivered" && !!rawInvNum;
-  const fileName = isInvoice
+  const fileName = rawInvNum
     ? `Invoice_${rawInvNum}_${order.storeNumber}.pdf`
-    : `PO_${order.poNumber}_${order.storeNumber}.pdf`;
+    : `Invoice_${order.poNumber}_${order.storeNumber}.pdf`;
   doc.save(fileName);
 }
 

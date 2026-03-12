@@ -27,7 +27,7 @@ const navItems = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/admin/products", label: "Products", icon: Package },
   { to: "/admin/customers", label: "Customers", icon: Users },
-  { to: "/admin/orders", label: "Orders / PO", icon: ShoppingCart },
+  { to: "/admin/orders", label: "Orders / Invoices", icon: ShoppingCart },
   { to: "/admin/accounts", label: "Accounts", icon: BarChart3 },
   { to: "/admin/users", label: "Users", icon: UserCog },
   { to: "/admin/settings", label: "Settings", icon: Settings },

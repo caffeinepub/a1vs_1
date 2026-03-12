@@ -97,7 +97,7 @@ function OrderTracker({ order }: { order: Order }) {
             >
               {order.invoiceNumber
                 ? `INV# ${order.invoiceNumber}`
-                : `PO# ${order.poNumber}`}
+                : `INV# ${order.poNumber}`}
             </Badge>
             <Badge
               className={cn(
