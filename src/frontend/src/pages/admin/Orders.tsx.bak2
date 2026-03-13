@@ -977,7 +977,7 @@ export default function Orders() {
         onOpenChange={(open) => !open && setAssignRiderOrder(null)}
       >
         <DialogContent
-          className="w-[calc(100vw-2rem)] max-w-sm max-h-[90vh] overflow-y-auto overflow-x-hidden"
+          className="max-w-sm max-h-[90vh] overflow-y-auto"
           data-ocid="admin.assign_rider.dialog"
         >
           <DialogHeader>
@@ -997,7 +997,7 @@ export default function Orders() {
                 {" · "}
                 {assignRiderOrder?.companyName}
               </p>
-              <p className="text-xs text-indigo-500 mt-0.5 truncate max-w-full">
+              <p className="text-xs text-indigo-500 mt-0.5 truncate">
                 {assignRiderOrder?.address}
               </p>
             </div>
@@ -1045,19 +1045,18 @@ export default function Orders() {
               </div>
             )}
           </div>
-          <DialogFooter className="flex flex-col gap-2 w-full">
+          <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button
               variant="outline"
               onClick={() => setAssignRiderOrder(null)}
               data-ocid="admin.assign_rider.skip_button"
               disabled={isAssigning}
-              className="w-full"
             >
               Cancel
             </Button>
             {riders.length > 0 && (
               <Button
-                className="gap-2 bg-indigo-600 hover:bg-indigo-700 w-full"
+                className="gap-2 bg-indigo-600 hover:bg-indigo-700"
                 disabled={!selectedRiderEmail || isAssigning}
                 data-ocid="admin.assign_rider.confirm_button"
                 onClick={async () => {
@@ -1130,7 +1129,7 @@ export default function Orders() {
             )}
             <Button
               variant="ghost"
-              className="gap-2 w-full"
+              className="gap-2"
               disabled={isAssigning}
               data-ocid="admin.assign_rider.no_rider_button"
               onClick={async () => {
